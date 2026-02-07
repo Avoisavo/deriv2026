@@ -61,7 +61,8 @@ const ticketTrendData = [
     { time: 'Fri', tickets: 290 },
 ];
 
-const COLORS = ['#0f172a', '#334155', '#64748b', '#94a3b8']; // Shades of slate
+
+const COLORS = ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe']; // Shades of blue
 
 type Message = {
     id: string;
@@ -173,7 +174,7 @@ export default function DashboardPage() {
             </Head>
 
             {/* LEFT SIDEBAR - VISUALIZATIONS */}
-            <aside className="w-[380px] flex-col border-r border-slate-200 bg-[#F7F7F8] h-full hidden md:flex shrink-0 overflow-y-auto custom-scrollbar">
+            <aside className="w-[40%] flex-col border-r border-slate-200 bg-[#F7F7F8] h-full hidden md:flex shrink-0 overflow-y-auto custom-scrollbar">
                 {/* Header */}
                 <div className="h-16 px-6 flex items-center justify-between shrink-0 bg-[#F7F7F8] sticky top-0 z-10">
                     <div className="flex items-center gap-2">
@@ -214,8 +215,8 @@ export default function DashboardPage() {
                                 <AreaChart data={ticketTrendData}>
                                     <defs>
                                         <linearGradient id="colorTickets" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#0f172a" stopOpacity={0.1} />
-                                            <stop offset="95%" stopColor="#0f172a" stopOpacity={0} />
+                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
+                                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
                                     <XAxis dataKey="time" hide />
@@ -223,7 +224,7 @@ export default function DashboardPage() {
                                         contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
                                         itemStyle={{ color: '#0f172a' }}
                                     />
-                                    <Area type="monotone" dataKey="tickets" stroke="#0f172a" fillOpacity={1} fill="url(#colorTickets)" strokeWidth={2} />
+                                    <Area type="monotone" dataKey="tickets" stroke="#3b82f6" fillOpacity={1} fill="url(#colorTickets)" strokeWidth={2} />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
@@ -245,7 +246,7 @@ export default function DashboardPage() {
                                         cursor={{ fill: '#f1f5f9' }}
                                         contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
                                     />
-                                    <Bar dataKey="errors" fill="#334155" radius={[4, 4, 0, 0]} barSize={20} />
+                                    <Bar dataKey="errors" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -294,7 +295,7 @@ export default function DashboardPage() {
             </aside>
 
             {/* CENTER: AI CHAT (Full Width) */}
-            <main className="flex-1 flex flex-col h-full bg-white relative z-20 shadow-xl">
+            <main className="w-[60%] flex flex-col h-full bg-white relative z-20 shadow-xl">
                 {/* Chat Header */}
                 <header className="h-16 px-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
                     <div className="flex items-center gap-3">
