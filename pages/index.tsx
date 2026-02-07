@@ -1,4 +1,5 @@
-import Image from "next/image";
+import Head from "next/head";
+import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 
 const geistSans = Geist({
@@ -13,66 +14,56 @@ const geistMono = Geist_Mono({
 
 export default function Home() {
   return (
-    <div
-      className={`${geistSans.className} ${geistMono.className} flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black`}
-    >
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the index.tsx file.
+    <>
+      <Head>
+        <title>TRUMAN</title>
+        <meta name="description" content="Project TRUMAN" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+      <main
+        className={`${geistSans.className} ${geistMono.className} relative flex min-h-screen flex-col items-center justify-between py-24 overflow-hidden`}
+      >
+        {/* Background Video */}
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute top-0 left-0 min-h-full min-w-full w-auto h-auto object-cover -z-20"
+        >
+          <source src="/landing.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+
+        {/* Overlay */}
+        <div className="absolute top-0 left-0 h-full w-full bg-black/40 -z-10" />
+
+        {/* Top Content: Title and Description */}
+        <div className="z-10 flex flex-col items-center gap-6 text-center px-4 mt-20">
+          <h1 className="text-7xl md:text-9xl font-bold tracking-tighter text-white drop-shadow-sm">
+            TRUMAN
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="max-w-3xl text-2xl md:text-3xl text-white/90 font-light tracking-wide leading-relaxed drop-shadow-xl">
+            Simulate business realities and guide decisions in real-time.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs/pages/getting-started?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Bottom Content: Button */}
+        <div className="z-10 mb-8">
+          <Link href="/dashboard">
+            <button className="group relative px-10 py-4 text-xl font-semibold text-white overflow-hidden transition-all duration-500 hover:scale-105 active:scale-95 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] rounded-full border border-white/20 backdrop-blur-md bg-white/10">
+              {/* Liquid Glass Highlight */}
+              <div className="absolute inset-0 bg-gradient-to-tr from-white/20 via-transparent to-transparent opacity-50 transition-opacity group-hover:opacity-80" />
+
+              {/* Shimmer Effect */}
+              <div className="absolute -inset-full h-[300%] w-[300%] translate-x-[-100%] translate-y-[-100%] group-hover:translate-x-[100%] group-hover:translate-y-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent rotate-45" />
+
+              <span className="relative z-10 drop-shadow-md">Start Now</span>
+            </button>
+          </Link>
         </div>
       </main>
-    </div>
+    </>
   );
 }
