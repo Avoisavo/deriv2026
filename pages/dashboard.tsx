@@ -25,7 +25,7 @@ const chats = [
         name: "Truman AI",
         active: true,
         preview: "Analyzing checkout flow...",
-        avatarColor: "bg-indigo-600 text-white",
+        avatarColor: "bg-slate-900 text-white",
         initials: "AI",
         isAi: true,
     },
@@ -248,7 +248,7 @@ export default function DashboardPage() {
                 {/* Chat Header */}
                 <header className="h-16 px-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center">
                             <Sparkles size={16} />
                         </div>
                         <div>
@@ -275,16 +275,16 @@ export default function DashboardPage() {
                                 key={msg.id}
                                 className={`flex gap-3 max-w-[85%] ${msg.sender === 'user' ? 'ml-auto flex-row-reverse' : ''}`}
                             >
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-1 ${msg.sender === 'ai' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-1 ${msg.sender === 'ai' ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-600'}`}>
                                     {msg.sender === 'ai' ? <Sparkles size={14} /> : 'ME'}
                                 </div>
                                 <div className={`flex flex-col gap-1 ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
-                                    <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.sender === 'ai' ? 'bg-white text-slate-800 rounded-tl-none border border-slate-100' : 'bg-indigo-600 text-white rounded-tr-none'}`}>
+                                    <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.sender === 'ai' ? 'bg-white text-slate-800 rounded-tl-none border border-slate-100' : 'bg-slate-900 text-white rounded-tr-none'}`}>
                                         {msg.text}
                                         {msg.action && (
                                             <button
                                                 onClick={() => router.push(msg.action!.url)}
-                                                className="mt-3 flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all shadow-md active:scale-95"
+                                                className="mt-3 flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all shadow-md active:scale-95"
                                             >
                                                 <Sparkles size={12} className="animate-pulse" />
                                                 {msg.action.label}
@@ -300,7 +300,7 @@ export default function DashboardPage() {
 
                         {isAiTyping && (
                             <div className="flex gap-3 max-w-[85%]">
-                                <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-1">
+                                <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-1">
                                     <Sparkles size={14} />
                                 </div>
                                 <div className="p-4 bg-white rounded-2xl rounded-tl-none border border-slate-100 text-slate-400 text-xs flex items-center gap-1">
@@ -323,11 +323,11 @@ export default function DashboardPage() {
                                 onChange={(e) => setInputValue(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                                 placeholder="Reply to Truman..."
-                                className="w-full pl-4 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm placeholder:text-slate-400"
+                                className="w-full pl-4 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 transition-all text-sm placeholder:text-slate-400"
                             />
                             <button
                                 onClick={handleSendMessage}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors shadow-sm border border-slate-100"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white rounded-lg text-slate-900 hover:bg-slate-100 transition-colors shadow-sm border border-slate-100"
                             >
                                 <Send size={16} fill="currentColor" />
                             </button>
