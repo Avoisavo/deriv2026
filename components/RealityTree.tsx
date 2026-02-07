@@ -179,6 +179,11 @@ const RealityTree: React.FC<Props> = ({
                 title: "Refunds increase",
                 desc: "Expect spike in ticket volume.",
               },
+              {
+                id: "G2C",
+                title: "Stabilizes after rollback",
+                desc: "Verify fix success & document root cause.",
+              },
             ],
         O3: [
           {
@@ -222,12 +227,22 @@ const RealityTree: React.FC<Props> = ({
             title: "Trust deficit",
             desc: "Long term churn for affected APAC cohort.",
           },
+          {
+            id: "G2BB",
+            title: "Competitor Migration",
+            desc: "Users switching to alternative platforms during downtime.",
+          },
         ],
         O2C: [
           {
             id: "G2CA",
             title: "Full System Audit",
             desc: "Verifying root cause across all clusters.",
+          },
+          {
+            id: "G2CB",
+            title: "Baseline Restored",
+            desc: "Conversion rates returning to pre-incident levels.",
           },
         ],
       };
@@ -364,9 +379,9 @@ const RealityTree: React.FC<Props> = ({
                 }
               }}
               className={`reality-node absolute transition-all duration-700 ease-in-out flex flex-col shadow-2xl z-50 rounded-2xl
-                ${n.type === "live" ? (isSimulated ? "bg-white border-2 border-orange-500 shadow-orange-200 ring-8 ring-orange-50" : "bg-white border-2 border-slate-900 shadow-slate-200") : ""}
-                ${n.type === "past" ? "bg-slate-50 border border-slate-200 opacity-60 grayscale shadow-none" : ""}
-                ${n.type === "outcome" ? "bg-white border shadow-md " + (n.is_high_prob ? "border-amber-500 border-2 shadow-amber-100 ring-8 ring-amber-50" : "border-slate-200") : ""}
+                ${n.type === "live" ? (isSimulated ? "bg-white border-2 border-orange-500 shadow-orange-200 ring-8 ring-orange-100" : "bg-white border-2 border-slate-900 shadow-slate-200") : ""}
+                ${n.type === "past" ? "bg-slate-50 border border-slate-200 opacity-60 grayscale shadow-none rounded-xl" : ""}
+                ${n.type === "outcome" ? "bg-white border shadow-md rounded-2xl " + (n.is_high_prob ? "border-amber-500 border-2 shadow-amber-100 ring-8 ring-amber-50" : "border-slate-200") : ""}
                 ${isSelected ? "scale-105 border-indigo-500 ring-10 ring-indigo-50 shadow-indigo-100" : ""}
                 ${n.type === "outcome" || n.type === "live" ? "cursor-pointer hover:shadow-xl" : "cursor-pointer"}
               `}

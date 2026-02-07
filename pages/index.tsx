@@ -1,4 +1,5 @@
-import Head from 'next/head';
+import Head from "next/head";
+import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 
 const geistSans = Geist({
@@ -20,7 +21,9 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <main className={`${geistSans.className} ${geistMono.className} relative flex min-h-screen flex-col items-center justify-between py-24 overflow-hidden`}>
+      <main
+        className={`${geistSans.className} ${geistMono.className} relative flex min-h-screen flex-col items-center justify-between py-24 overflow-hidden`}
+      >
         {/* Background Video */}
         <video
           autoPlay
@@ -42,23 +45,24 @@ export default function Home() {
             TRUMAN
           </h1>
           <p className="max-w-3xl text-2xl md:text-3xl text-white/90 font-light tracking-wide leading-relaxed drop-shadow-xl">
-            A platform that simulates multiple possible business realities and guides decisions as the real one unfolds
+            A platform that simulates multiple possible business realities and
+            guides decisions as the real one unfolds
           </p>
         </div>
 
         {/* Bottom Content: Button */}
         <div className="z-10 mb-8">
-          <button
-            className="group relative px-10 py-4 text-xl font-semibold text-white overflow-hidden transition-all duration-500 hover:scale-105 active:scale-95 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] rounded-full border border-white/20 backdrop-blur-md bg-white/10"
-          >
-            {/* Liquid Glass Highlight */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/20 via-transparent to-transparent opacity-50 transition-opacity group-hover:opacity-80" />
+          <Link href="/simulation">
+            <button className="group relative px-10 py-4 text-xl font-semibold text-white overflow-hidden transition-all duration-500 hover:scale-105 active:scale-95 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] rounded-full border border-white/20 backdrop-blur-md bg-white/10">
+              {/* Liquid Glass Highlight */}
+              <div className="absolute inset-0 bg-gradient-to-tr from-white/20 via-transparent to-transparent opacity-50 transition-opacity group-hover:opacity-80" />
 
-            {/* Shimmer Effect */}
-            <div className="absolute -inset-full h-[300%] w-[300%] translate-x-[-100%] translate-y-[-100%] group-hover:translate-x-[100%] group-hover:translate-y-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent rotate-45" />
+              {/* Shimmer Effect */}
+              <div className="absolute -inset-full h-[300%] w-[300%] translate-x-[-100%] translate-y-[-100%] group-hover:translate-x-[100%] group-hover:translate-y-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent rotate-45" />
 
-            <span className="relative z-10 drop-shadow-md">Start Now</span>
-          </button>
+              <span className="relative z-10 drop-shadow-md">Start Now</span>
+            </button>
+          </Link>
         </div>
       </main>
     </>
