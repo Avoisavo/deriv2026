@@ -14,7 +14,8 @@ import {
     Video,
     Phone,
     Send,
-    Cpu,
+    Bot, // Changed from Cpu/Sparkles for AI
+    Command, // New page icon
     Sparkles,
     BarChart2,
     TrendingUp,
@@ -60,6 +61,7 @@ const ticketTrendData = [
     { time: 'Thu', tickets: 450 }, // Spike
     { time: 'Fri', tickets: 290 },
 ];
+
 
 
 const COLORS = ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe']; // Shades of blue
@@ -151,20 +153,11 @@ export default function DashboardPage() {
     };
 
     const processUserCommand = (cmd: string) => {
-        const lowerCmd = cmd.toLowerCase();
-
-        if (lowerCmd.includes("show") || lowerCmd.includes("visualize") || lowerCmd.includes("what")) {
-            addAiMessage("Currently, we're seeing a 42% spike in tickets.");
-        }
-        else if (lowerCmd.includes("cause") || lowerCmd.includes("why")) {
-            addAiMessage("The most likely cause is a checkout error rate rising to 2.1%. This correlates with the recent APAC deploy.");
-        }
-        else if (lowerCmd.includes("simulate") || lowerCmd.includes("future") || lowerCmd.includes("next")) {
-            addAiMessage("Simulating future state... I project immediate revenue impact if this continues. I recommend preparing a rollback.", { label: "Run Simulation", url: "/simulation" });
-        }
-        else {
-            addAiMessage("I'm not sure how to handle that specific command, but I'm monitoring the situation.");
-        }
+        // Always suggest simulation for deeper insight
+        addAiMessage(
+            "I've analyzed your input. To get more insight and see potential outcomes, I recommend running a simulation.",
+            { label: "Run Simulation", url: "/simulation" }
+        );
     };
 
     return (
@@ -179,7 +172,7 @@ export default function DashboardPage() {
                 <div className="h-16 px-6 flex items-center justify-between shrink-0 bg-[#F7F7F8] sticky top-0 z-10">
                     <div className="flex items-center gap-2">
                         <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white">
-                            <Cpu size={18} />
+                            <Command size={18} />
                         </div>
                         <h1 className="text-lg font-bold text-slate-900 tracking-tight">TRUMAN</h1>
                     </div>
@@ -300,7 +293,7 @@ export default function DashboardPage() {
                 <header className="h-16 px-6 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center">
-                            <Sparkles size={16} />
+                            <Bot size={18} />
                         </div>
                         <div>
                             <h2 className="text-base font-bold text-slate-900 leading-none">Truman AI</h2>
@@ -327,7 +320,7 @@ export default function DashboardPage() {
                                 className={`flex gap-3 max-w-[85%] ${msg.sender === 'user' ? 'ml-auto flex-row-reverse' : ''}`}
                             >
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-1 ${msg.sender === 'ai' ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-600'}`}>
-                                    {msg.sender === 'ai' ? <Sparkles size={14} /> : 'ME'}
+                                    {msg.sender === 'ai' ? <Bot size={16} /> : 'ME'}
                                 </div>
                                 <div className={`flex flex-col gap-1 ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
                                     <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.sender === 'ai' ? 'bg-white text-slate-800 rounded-tl-none border border-slate-100' : 'bg-slate-900 text-white rounded-tr-none'}`}>
@@ -352,7 +345,7 @@ export default function DashboardPage() {
                         {isAiTyping && (
                             <div className="flex gap-3 max-w-[85%]">
                                 <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-1">
-                                    <Sparkles size={14} />
+                                    <Bot size={16} />
                                 </div>
                                 <div className="p-4 bg-white rounded-2xl rounded-tl-none border border-slate-100 text-slate-400 text-xs flex items-center gap-1">
                                     <span className="w-1 h-1 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -389,3 +382,4 @@ export default function DashboardPage() {
         </div>
     );
 }
+
