@@ -6,7 +6,7 @@ import React, {
   useCallback,
 } from "react";
 import { RealityNode } from "../types/reality-tree";
-import { Search, History } from "lucide-react";
+import { Search, History, TrendingUp } from "lucide-react";
 
 interface Props {
   activeNode: RealityNode;
@@ -33,7 +33,7 @@ const RealityTree: React.FC<Props> = ({
 
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   const NODE_WIDTH = isMobile ? 220 : 280;
-  const NODE_HEIGHT = isMobile ? 120 : 160;
+  const NODE_HEIGHT = isMobile ? 100 : 130;
 
   const centerTree = useCallback(() => {
     if (containerRef.current) {
@@ -47,11 +47,9 @@ const RealityTree: React.FC<Props> = ({
 
   useEffect(() => {
     centerTree();
-
-    const observer = new ResizeObserver(() => {
-      requestAnimationFrame(centerTree);
-    });
-
+    const observer = new ResizeObserver(() =>
+      requestAnimationFrame(centerTree),
+    );
     if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, [centerTree]);
@@ -66,9 +64,8 @@ const RealityTree: React.FC<Props> = ({
           {
             id: "O1",
             x: spacing,
-            y: -200,
+            y: -300,
             title: "More failed checkouts",
-            signal: "Source: Payment failures increase",
             prob: 0.35,
           },
           {
@@ -76,24 +73,21 @@ const RealityTree: React.FC<Props> = ({
             x: spacing,
             y: 0,
             title: "Checkout errors rise",
-            signal: "Source: Latency breaches",
             prob: 0.45,
             is_high_prob: true,
           },
           {
             id: "O3",
             x: spacing,
-            y: 200,
+            y: 300,
             title: "Partner traffic quality drops",
-            signal: "Source: Conversion falls",
             prob: 0.15,
           },
           {
             id: "O4",
             x: spacing,
-            y: 400,
+            y: 600,
             title: "Stabilizes (no worsening)",
-            signal: "Source: Tickets flatten",
             prob: 0.05,
           },
         ],
@@ -161,26 +155,23 @@ const RealityTree: React.FC<Props> = ({
         {
           id: "O2A",
           x: spacing,
-          y: -150,
+          y: -200,
           title: "Revenue drops today",
-          signal: "Source: APAC P95 Breach",
           prob: 0.55,
           is_high_prob: true,
         },
         {
           id: "O2B",
           x: spacing,
-          y: 50,
+          y: 100,
           title: "Refunds increase",
-          signal: "Source: Dispute volume spike",
           prob: 0.25,
         },
         {
           id: "O2C",
           x: spacing,
-          y: 250,
+          y: 400,
           title: "Stabilizes after rollback",
-          signal: "Source: Release candidate healthy",
           prob: 0.2,
         },
       ],
@@ -190,7 +181,7 @@ const RealityTree: React.FC<Props> = ({
         {
           id: "O4",
           x: 0,
-          y: 400,
+          y: 500,
           title: "Stabilizes (no worsening)",
           prob: 0.02,
         },
@@ -248,18 +239,13 @@ const RealityTree: React.FC<Props> = ({
 
         {structure.outcomes.map((out) => {
           const endX = out.x;
-          const endY = out.y + 100 / 2;
+          const endY = out.y + NODE_HEIGHT / 2;
           const isActivePath = out.is_high_prob;
-
           return (
             <path
               key={`p-root-${out.id}`}
-              d={`M ${rootX} ${rootY} C ${rootX + 120} ${rootY}, ${endX - 120} ${endY}, ${endX} ${endY}`}
-              className={`fill-none transition-all duration-700 ${
-                isActivePath
-                  ? "stroke-amber-500 stroke-[4] animate-dash"
-                  : "stroke-slate-200 stroke-[2]"
-              }`}
+              d={`M ${rootX} ${rootY} C ${rootX + 150} ${rootY}, ${endX - 150} ${endY}, ${endX} ${endY}`}
+              className={`fill-none transition-all duration-700 ${isActivePath ? "stroke-amber-500 stroke-[4] animate-dash" : "stroke-slate-200 stroke-[2]"}`}
               style={{ strokeDasharray: isActivePath ? "4 4" : "6 4" }}
             />
           );
@@ -269,7 +255,7 @@ const RealityTree: React.FC<Props> = ({
           structure.collapsedOutcomes?.map((out) => (
             <path
               key={`p-past-${out.id}`}
-              d={`M ${structure.pastRoot!.x + NODE_WIDTH} ${structure.pastRoot!.y + NODE_HEIGHT / 2} C ${structure.pastRoot!.x + NODE_WIDTH + 100} ${structure.pastRoot!.y + NODE_HEIGHT / 2}, ${out.x - 100} ${out.y + 100 / 2}, ${out.x} ${out.y + 100 / 2}`}
+              d={`M ${structure.pastRoot!.x + NODE_WIDTH} ${structure.pastRoot!.y + NODE_HEIGHT / 2} C ${structure.pastRoot!.x + NODE_WIDTH + 100} ${structure.pastRoot!.y + NODE_HEIGHT / 2}, ${out.x - 100} ${out.y + NODE_HEIGHT / 2}, ${out.x} ${out.y + NODE_HEIGHT / 2}`}
               className="fill-none stroke-slate-100 stroke-[1.5]"
             />
           ))}
@@ -281,18 +267,19 @@ const RealityTree: React.FC<Props> = ({
                 (o) => o.id === selectedOutcomeId,
               )!;
               const startX = out.x + NODE_WIDTH;
-              const startY = out.y + 100 / 2;
-              const ghostX = isMobile ? 750 : 1000;
+              const startY = out.y + NODE_HEIGHT / 2;
+              const ghostX = isMobile
+                ? spacing + NODE_WIDTH + 200
+                : spacing + NODE_WIDTH + 400;
               const endY =
                 out.y -
-                (isMobile ? 60 : 80) +
-                i * (isMobile ? 120 : 160) +
-                (isMobile ? 100 : 130) / 2;
-
+                (isMobile ? 100 : 150) +
+                i * (isMobile ? 200 : 300) +
+                NODE_HEIGHT / 2;
               return (
                 <path
                   key={`p-ghost-${g.id}`}
-                  d={`M ${startX} ${startY} C ${startX + 120} ${startY}, ${ghostX - 120} ${endY}, ${ghostX} ${endY}`}
+                  d={`M ${startX} ${startY} C ${startX + 180} ${startY}, ${ghostX - 180} ${endY}, ${ghostX} ${endY}`}
                   className="fill-none stroke-indigo-400 stroke-[2] stroke-dasharray-[4,4]"
                 />
               );
@@ -302,6 +289,8 @@ const RealityTree: React.FC<Props> = ({
     );
   };
 
+  const spacing = isMobile ? 400 : 550;
+
   return (
     <div
       ref={containerRef}
@@ -309,10 +298,11 @@ const RealityTree: React.FC<Props> = ({
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={() => setIsDragging(false)}
-      onWheel={(e) => {
-        const delta = e.deltaY * -0.001;
-        setScale((prev) => Math.min(Math.max(0.4, prev + delta), 1.5));
-      }}
+      onWheel={(e) =>
+        setScale((prev) =>
+          Math.min(Math.max(0.4, prev + e.deltaY * -0.001), 1.5),
+        )
+      }
     >
       <div
         className="absolute inset-0 transition-transform duration-75 ease-out origin-center"
@@ -327,16 +317,20 @@ const RealityTree: React.FC<Props> = ({
         {/* LAYER 0: PAST ROOT */}
         {isSimulated && structure.pastRoot && (
           <div
-            className="reality-node absolute transition-all duration-500 rounded-xl p-5 md:p-7 flex flex-col shadow-lg bg-slate-50 border border-slate-200 opacity-60 z-10"
+            onClick={() => {
+              onSelectBranch(null);
+              onSelectNode(null);
+            }}
+            className="reality-node absolute transition-all duration-500 rounded-xl p-5 md:p-7 flex flex-col shadow-lg bg-slate-50 border border-slate-200 opacity-60 z-10 cursor-pointer hover:opacity-100"
             style={{
               left: structure.pastRoot.x,
               top: structure.pastRoot.y,
               width: NODE_WIDTH,
-              height: 100,
+              height: 80,
             }}
           >
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded flex items-center gap-1 bg-slate-200 text-slate-500">
+            <div className="flex justify-between items-start mb-2 text-slate-400">
+              <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded flex items-center gap-1 bg-slate-200">
                 <History size={10} /> Past State
               </span>
             </div>
@@ -348,9 +342,12 @@ const RealityTree: React.FC<Props> = ({
 
         {/* LAYER 1: ACTIVE ROOT */}
         <div
-          className={`reality-node absolute transition-all duration-700 rounded-xl p-5 md:p-7 flex flex-col shadow-2xl z-50
-            ${isSimulated ? "bg-white border-2 border-orange-500 shadow-orange-100" : "bg-white border-2 border-slate-900"}
-          `}
+          onClick={() => {
+            onSelectBranch(null);
+            onSelectNode(null);
+          }}
+          className={`reality-node absolute transition-all duration-700 rounded-2xl p-6 md:p-8 flex flex-col shadow-2xl z-50 cursor-pointer
+            ${isSimulated ? "bg-white border-2 border-orange-500 shadow-orange-100 hover:shadow-orange-200" : "bg-white border-2 border-slate-900 hover:shadow-slate-200"}`}
           style={{
             left: structure.root.x,
             top: structure.root.y,
@@ -358,25 +355,22 @@ const RealityTree: React.FC<Props> = ({
             minHeight: NODE_HEIGHT,
           }}
         >
-          <div className="flex justify-between items-start mb-2 md:mb-3">
+          <div className="flex justify-between items-start mb-4">
             <span
-              className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded flex items-center gap-1
-              ${isSimulated ? "bg-orange-500 text-white" : "bg-slate-900 text-white"}
-            `}
+              className={`text-[9px] md:text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded flex items-center gap-2
+              ${isSimulated ? "bg-orange-500 text-white" : "bg-slate-900 text-white"}`}
             >
-              Live State
+              <TrendingUp size={12} /> Live State
             </span>
           </div>
-
-          <h3 className="font-black text-slate-800 text-sm md:text-base leading-tight mb-2">
+          <h3 className="font-black text-slate-900 text-base md:text-lg leading-snug mb-3">
             {activeNode.title}
           </h3>
-
-          <div className="space-y-1 mt-auto">
+          <div className="space-y-1.5 mt-auto">
             {activeNode.facts?.map((f, i) => (
               <div
                 key={i}
-                className="flex items-center gap-2 text-[9px] md:text-[10px] text-slate-500"
+                className="flex items-center gap-2 text-[10px] md:text-[11px] text-slate-600 font-medium"
               >
                 <div className="w-1.5 h-1.5 bg-slate-400 rounded-full shrink-0" />
                 <span className="leading-tight">{f}</span>
@@ -392,61 +386,39 @@ const RealityTree: React.FC<Props> = ({
             onClick={() =>
               onSelectBranch(selectedOutcomeId === out.id ? null : out.id)
             }
-            className={`reality-node absolute transition-all duration-300 cursor-pointer rounded-xl p-4 md:p-6 flex flex-col border shadow-sm z-30
+            className={`reality-node absolute transition-all duration-400 cursor-pointer rounded-2xl p-5 md:p-7 flex flex-col border shadow-sm z-30
               ${out.is_high_prob ? "bg-white border-amber-500 border-2 shadow-xl ring-8 ring-amber-50" : "bg-white border-slate-200"}
-              ${selectedNodeId === out.id ? "scale-105 border-indigo-500 ring-4 md:ring-8 ring-indigo-50" : "hover:border-slate-400"}
-            `}
+              ${selectedNodeId === out.id ? "scale-105 border-indigo-500 ring-4 md:ring-10 ring-indigo-50" : "hover:border-slate-400"}`}
             style={{
               left: out.x,
               top: out.y,
               width: NODE_WIDTH,
-              minHeight: 100,
+              minHeight: NODE_HEIGHT - 20,
             }}
           >
             {selectedNodeId === out.id && (
-              <span className="absolute -top-3 left-4 bg-indigo-600 text-white text-[8px] md:text-[9px] font-black uppercase px-2 py-1 rounded shadow-lg flex items-center gap-1 z-50">
-                <Search size={10} /> Preview
+              <span className="absolute -top-4 left-6 bg-indigo-600 text-white text-[9px] md:text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-2xl flex items-center gap-1.5 z-50">
+                <Search size={12} /> Previewing
               </span>
             )}
+
             <div className="flex justify-between items-start mb-2">
-              <h4 className="font-bold text-slate-800 text-xs md:text-sm leading-tight max-w-[70%]">
+              <h4 className="font-black text-slate-900 text-sm md:text-base leading-tight max-w-[75%]">
                 {out.title}
               </h4>
-              <span
-                className={`text-[9px] md:text-[10px] font-mono font-black ${out.is_high_prob ? "text-amber-600" : "text-slate-400"}`}
-              >
-                {Math.round(out.prob * 100)}% Likely
-              </span>
-            </div>
-            <p className="text-[8px] md:text-[10px] text-slate-500 font-medium italic mt-auto">
-              {out.signal}
-            </p>
-          </div>
-        ))}
-
-        {/* LAYER 2b: COLLAPSED PAST OUTCOMES */}
-        {isSimulated &&
-          structure.collapsedOutcomes?.map((out) => (
-            <div
-              key={`collapsed-${out.id}`}
-              className="reality-node absolute transition-all duration-500 rounded-xl p-4 flex flex-col border border-slate-100 bg-white/40 opacity-30 z-5 select-none pointer-events-none"
-              style={{
-                left: out.x + structure.pastRoot!.x + NODE_WIDTH + 80,
-                top: out.y,
-                width: NODE_WIDTH - 40,
-                minHeight: 80,
-              }}
-            >
-              <div className="flex justify-between items-start">
-                <h4 className="font-bold text-slate-400 text-[10px] leading-tight max-w-[70%]">
-                  {out.title}
-                </h4>
-                <span className="text-[8px] font-mono font-bold text-slate-300">
+              <div className="flex flex-col items-end">
+                <span
+                  className={`text-[11px] md:text-[13px] font-black ${out.is_high_prob ? "text-amber-600" : "text-slate-400"}`}
+                >
                   {Math.round(out.prob * 100)}%
+                </span>
+                <span className="text-[7px] md:text-[8px] font-bold text-slate-300 uppercase tracking-tighter">
+                  Likeliness
                 </span>
               </div>
             </div>
-          ))}
+          </div>
+        ))}
 
         {/* LAYER 3: GHOST FUTURES */}
         {selectedOutcomeId &&
@@ -459,39 +431,34 @@ const RealityTree: React.FC<Props> = ({
                   onSelectNode(selectedNodeId === g.id ? null : g.id);
                 }}
                 className={`reality-node absolute bg-white border border-dashed transition-all duration-300 cursor-pointer rounded-2xl p-5 md:p-7 flex flex-col opacity-90 shadow-2xl animate-in zoom-in-95 duration-300 z-10
-                  ${selectedNodeId === g.id ? "border-indigo-500 ring-4 md:ring-8 ring-indigo-50 scale-105" : "border-indigo-200 hover:border-indigo-400"}
-                `}
+              ${selectedNodeId === g.id ? "border-indigo-500 ring-4 md:ring-10 ring-indigo-50 scale-105" : "border-indigo-200 hover:border-indigo-400"}`}
                 style={{
-                  left: isMobile ? 750 : 1000,
+                  left: isMobile
+                    ? spacing + NODE_WIDTH + 200
+                    : spacing + NODE_WIDTH + 400,
                   top:
                     structure.outcomes.find((o) => o.id === selectedOutcomeId)!
                       .y -
-                    (isMobile ? 60 : 80) +
-                    i * (isMobile ? 120 : 160),
-                  width: isMobile ? 260 : 320,
+                    (isMobile ? 100 : 150) +
+                    i * (isMobile ? 200 : 300),
+                  width: isMobile ? 240 : 300,
                   minHeight: isMobile ? 100 : 130,
                 }}
               >
                 {selectedNodeId === g.id && (
-                  <span className="absolute -top-3 left-4 bg-indigo-600 text-white text-[8px] md:text-[9px] font-black uppercase px-2 py-1 rounded shadow-lg flex items-center gap-1 z-50">
-                    <Search size={10} /> Preview
+                  <span className="absolute -top-4 left-6 bg-indigo-600 text-white text-[9px] md:text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-2xl flex items-center gap-1.5 z-50">
+                    <Search size={12} /> Previewing
                   </span>
                 )}
-                <span className="text-[8px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-2 block">
-                  Future Probability
+                <span className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-2 block">
+                  Next Reality
                 </span>
-                <h5 className="font-black text-slate-800 text-sm md:text-base mb-1 leading-tight">
+                <h5 className="font-black text-slate-900 text-sm md:text-base mb-2 leading-tight">
                   {g.title}
                 </h5>
-                <p className="text-[10px] md:text-[12px] text-slate-500 leading-tight mb-2">
+                <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
                   {g.desc}
                 </p>
-                <div className="mt-auto pt-2 md:pt-3 border-t border-indigo-50 flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-200" />
-                  <span className="text-[8px] font-bold text-indigo-400 uppercase tracking-widest">
-                    Projection
-                  </span>
-                </div>
               </div>
             ),
           )}

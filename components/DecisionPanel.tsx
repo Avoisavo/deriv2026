@@ -5,8 +5,10 @@ import {
   Zap,
   Activity,
   X,
-  ArrowRight,
   GripVertical,
+  CheckCircle2,
+  ShieldAlert,
+  Eye,
 } from "lucide-react";
 
 interface Props {
@@ -63,6 +65,7 @@ const DecisionPanel: React.FC<Props> = ({ node, scenarioId, onClose }) => {
         : "100%",
   };
 
+  // Content for S2 simulated state
   const simulatedContent = {
     safeProtocols: [
       {
@@ -79,6 +82,212 @@ const DecisionPanel: React.FC<Props> = ({ node, scenarioId, onClose }) => {
       desc: "Automatic trigger if error rate stays above 2.0% until 01:25 AM.",
     },
   };
+
+  // Enriched Scenario Content Mapping
+  const scenarioDetails: Record<
+    string,
+    {
+      watchingNext: string;
+      recommendation: { type: "support" | "mitigate"; text: string };
+      beliefDist: { label: string; val: number }[];
+      safeProtocols: { title: string; desc: string }[];
+    }
+  > = {
+    O1: {
+      watchingNext: "Payment Gateway Latency",
+      recommendation: {
+        type: "mitigate",
+        text: "Prepare emergency failover to Stripe B",
+      },
+      beliefDist: [
+        { label: "Provider alert", val: 65 },
+        { label: "Cart abandonment", val: 35 },
+      ],
+      safeProtocols: [
+        {
+          title: "Gateway Warm-up",
+          desc: "Keep standby provider session active to reduce switchover latency.",
+        },
+        {
+          title: "Throttle Non-Essential API",
+          desc: "Prioritize checkout bandwidth over analytics pings.",
+        },
+      ],
+    },
+    O2: {
+      watchingNext: "APAC Telemetry Breach",
+      recommendation: {
+        type: "mitigate",
+        text: "Auto-trigger status page banner & rollback readiness",
+      },
+      beliefDist: [
+        { label: "Revenue drop", val: 75 },
+        { label: "Refund spike", val: 25 },
+      ],
+      safeProtocols: [
+        {
+          title: "Status Page Automation",
+          desc: "Draft localized incidence report for APAC stakeholders.",
+        },
+        {
+          title: "Regional CDN Flush",
+          desc: "Clear APAC edge cache to ensure latest recovery config propagates.",
+        },
+      ],
+    },
+    O3: {
+      watchingNext: "Referral Conversion Rate",
+      recommendation: {
+        type: "mitigate",
+        text: "Pause APAC marketing campaigns",
+      },
+      beliefDist: [
+        { label: "Partner attrition", val: 80 },
+        { label: "Scam alerts", val: 20 },
+      ],
+      safeProtocols: [
+        {
+          title: "Marketing Spend Halt",
+          desc: "Instantly pause programmatic ads in high-latency regions.",
+        },
+        {
+          title: "Fraud Engine Boost",
+          desc: "Increase sensitivity for referrals originating from affected partners.",
+        },
+      ],
+    },
+    O4: {
+      watchingNext: "Ticket Arrival Rate",
+      recommendation: {
+        type: "support",
+        text: "Confirm baseline stability & close monitoring",
+      },
+      beliefDist: [
+        { label: "Volume recovery", val: 90 },
+        { label: "Conversion recovery", val: 10 },
+      ],
+      safeProtocols: [
+        {
+          title: "Baseline Verification",
+          desc: "Compare last 5 mins with 24h rolling average.",
+        },
+        {
+          title: "Support Backlog Pulse",
+          desc: "Coordinate with CS team to verify actual customer success.",
+        },
+      ],
+    },
+    O2A: {
+      watchingNext: "Hourly Revenue Delta",
+      recommendation: {
+        type: "mitigate",
+        text: "Immediate CEO-level financial brief",
+      },
+      beliefDist: [
+        { label: "Manual override", val: 60 },
+        { label: "Shareholder impact", val: 40 },
+      ],
+      safeProtocols: [
+        {
+          title: "Revenue Leak Alert",
+          desc: "Notify finance of projected $12k/hr delta in APAC.",
+        },
+        {
+          title: "Investor Comms Draft",
+          desc: "Prepare internal memo regarding Q1 performance variance.",
+        },
+      ],
+    },
+    O2B: {
+      watchingNext: "CS Ticket Volume",
+      recommendation: { type: "mitigate", text: "Scale APAC support staff" },
+      beliefDist: [{ label: "Trust deficit", val: 100 }],
+      safeProtocols: [
+        {
+          title: "Staff Surge Trigger",
+          desc: "Onboard overflow support vendor for APAC complaints.",
+        },
+        {
+          title: "Auto-Refund Protocol",
+          desc: "Enable 1-click compensation for orders stuck in 'pending'.",
+        },
+      ],
+    },
+    O2C: {
+      watchingNext: "Post-Deploy Latency",
+      recommendation: {
+        type: "support",
+        text: "Verify fix success & document root cause",
+      },
+      beliefDist: [{ label: "System health 100%", val: 100 }],
+      safeProtocols: [
+        {
+          title: "Health Check Probe",
+          desc: "Run synthetic transactions across all APAC edge regions.",
+        },
+        {
+          title: "Post-Mortem Init",
+          desc: "Schedule engineering review for incident INC-492.",
+        },
+      ],
+    },
+    // Adding Layer 3 ghosts for complete coverage
+    G1A: {
+      watchingNext: "Provider API Status",
+      recommendation: {
+        type: "mitigate",
+        text: "Switch to secondary region immediately",
+      },
+      beliefDist: [{ label: "Infra saturation", val: 100 }],
+      safeProtocols: [
+        {
+          title: "Region Evacuation",
+          desc: "Route all requests away from failing cluster.",
+        },
+      ],
+    },
+    G1B: {
+      watchingNext: "Checkout Abandonment Rate",
+      recommendation: {
+        type: "mitigate",
+        text: "Trigger 'Wait' message to users",
+      },
+      beliefDist: [{ label: "Revenue loss", val: 100 }],
+      safeProtocols: [
+        {
+          title: "User Flow Buffer",
+          desc: "Insert artificial delay to prevent rate limiting.",
+        },
+      ],
+    },
+    G2A: {
+      watchingNext: "Gross Merchandise Value",
+      recommendation: {
+        type: "mitigate",
+        text: "Apply emergency discounting for parity",
+      },
+      beliefDist: [{ label: "Quarterly Target", val: 100 }],
+      safeProtocols: [
+        {
+          title: "GMV recovery",
+          desc: "Push targeted promocodes to affected users.",
+        },
+      ],
+    },
+    G2B: {
+      watchingNext: "Refund Count",
+      recommendation: { type: "mitigate", text: "Automate dispute resolution" },
+      beliefDist: [{ label: "Brand Equity", val: 100 }],
+      safeProtocols: [
+        {
+          title: "Dispute suppression",
+          desc: "Proactively refund small transactions.",
+        },
+      ],
+    },
+  };
+
+  const currentScenario = scenarioId ? scenarioDetails[scenarioId] : null;
 
   return (
     <aside
@@ -109,7 +318,9 @@ const DecisionPanel: React.FC<Props> = ({ node, scenarioId, onClose }) => {
                 : "Recommended Actions"}
             </h2>
             <div className="text-base md:text-lg font-black text-slate-800 flex items-center gap-2">
-              {isScenario ? "Conditional Strategy" : "Live Decision Protocol"}
+              {isScenario
+                ? "Scenario-Specific Protocol"
+                : "Live Decision Protocol"}
               <div
                 className={`w-2 h-2 rounded-full ${isScenario ? "bg-indigo-500" : "bg-slate-900"}`}
               />
@@ -127,123 +338,122 @@ const DecisionPanel: React.FC<Props> = ({ node, scenarioId, onClose }) => {
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-10 md:space-y-12 scrollbar-hide">
-        {!isScenario && node.beliefs && (
-          <div className="space-y-4 md:space-y-5">
-            <div className="flex items-center gap-2 text-slate-500">
-              <Activity size={14} />
-              <h3 className="text-[10px] font-black uppercase tracking-widest">
-                Likelihood Analysis
-              </h3>
-            </div>
-            <div className="space-y-4 md:space-y-5">
-              {node.beliefs.map((b, i) => (
-                <div key={i} className="space-y-2">
-                  <div className="flex justify-between text-[11px] md:text-xs font-bold text-slate-800">
-                    <span className="truncate mr-2">{b.label}</span>
-                    <span className="text-slate-400 shrink-0">{b.val}%</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-slate-400 rounded-full"
-                      style={{ width: `${b.val}%` }}
-                    />
-                  </div>
+        {currentScenario ? (
+          <div className="space-y-8 animate-in fade-in slide-in-from-top-2 duration-500">
+            {/* Watching Next */}
+            <div className="p-4 bg-indigo-900 rounded-xl text-white flex items-center justify-between shadow-lg">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-800 rounded-lg">
+                  <Eye size={18} className="text-indigo-300" />
                 </div>
-              ))}
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-indigo-400">
+                    Watching Next
+                  </p>
+                  <p className="text-sm font-black tracking-tight">
+                    {currentScenario.watchingNext}
+                  </p>
+                </div>
+              </div>
+              <div className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+            </div>
+
+            {/* Belief Distribution */}
+            <div className="space-y-5">
+              <div className="flex items-center gap-2 text-slate-500">
+                <Activity size={14} />
+                <h3 className="text-[10px] font-black uppercase tracking-widest">
+                  Upcoming Belief Dist.
+                </h3>
+              </div>
+              <div className="space-y-5">
+                {currentScenario.beliefDist.map((b, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="flex justify-between text-[11px] md:text-xs font-bold text-slate-800">
+                      <span className="truncate mr-2">{b.label}</span>
+                      <span className="text-indigo-600 shrink-0">{b.val}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-indigo-500 rounded-full transition-all duration-1000"
+                        style={{ width: `${b.val}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Actionable Recommendations (Standardized Name) */}
+            <div className="space-y-5">
+              <div className="flex items-center gap-2 text-slate-500">
+                <CheckCircle2 size={14} />
+                <h3 className="text-[10px] font-black uppercase tracking-widest">
+                  Actionable Recommendation
+                </h3>
+              </div>
+              <div
+                className={`p-5 rounded-xl border-l-4 shadow-sm flex flex-col gap-2 ${currentScenario.recommendation.type === "support" ? "bg-emerald-50 border-emerald-200 border-l-emerald-600" : "bg-rose-50 border-rose-200 border-l-rose-600"}`}
+              >
+                <div className="flex items-center gap-2">
+                  {currentScenario.recommendation.type === "support" ? (
+                    <CheckCircle2 size={16} className="text-emerald-600" />
+                  ) : (
+                    <ShieldAlert size={16} className="text-rose-600" />
+                  )}
+                  <span
+                    className={`text-[10px] font-black uppercase tracking-wider ${currentScenario.recommendation.type === "support" ? "text-emerald-700" : "text-rose-700"}`}
+                  >
+                    {currentScenario.recommendation.type === "support"
+                      ? "Strategic Support"
+                      : "Mitigation Protocol"}
+                  </span>
+                </div>
+                <p className="text-[13px] font-bold text-slate-800 leading-tight">
+                  {currentScenario.recommendation.text}
+                </p>
+              </div>
+            </div>
+
+            {/* Unique Safe Protocols for each scenario */}
+            <div className="space-y-4 md:space-y-5">
+              <div className="flex items-center gap-2 text-emerald-600">
+                <ShieldCheck size={16} />
+                <span className="text-[10px] font-black uppercase tracking-widest">
+                  Branch-Specific Guardrails
+                </span>
+              </div>
+              <div className="space-y-3">
+                {currentScenario.safeProtocols.map((protocol, i) => (
+                  <div
+                    key={i}
+                    className="group relative bg-white rounded-xl border border-slate-100 p-4 md:p-5 shadow-sm hover:shadow-md hover:border-emerald-400 transition-all cursor-pointer"
+                  >
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 rounded-l-xl" />
+                    <h3 className="font-bold text-xs text-slate-800 mb-1">
+                      {protocol.title}
+                    </h3>
+                    <p className="text-[10px] md:text-[11px] text-slate-400 leading-relaxed italic">
+                      {protocol.desc}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-40 py-20">
+            <Zap size={32} className="text-slate-300" />
+            <div className="space-y-1">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-400">
+                Live State Active
+              </p>
+              <p className="text-[10px] font-medium text-slate-400 max-w-[200px]">
+                Intelligence logs only available for predicted reality branches.
+              </p>
             </div>
           </div>
         )}
-
-        <div className="space-y-4 md:space-y-5">
-          <div className="flex items-center gap-2 text-emerald-600">
-            <ShieldCheck size={16} />
-            <span className="text-[10px] font-black uppercase tracking-widest">
-              Safe Protocols
-            </span>
-          </div>
-
-          <div className="space-y-3">
-            {(isSimulated
-              ? simulatedContent.safeProtocols
-              : [
-                  {
-                    title: "Stricter monitoring for APAC checkout",
-                    desc: "Ensures high-fidelity data collection.",
-                  },
-                  {
-                    title: "Route APAC traffic to backup instance",
-                    desc: "Protective redundancy measure.",
-                  },
-                ].filter((_, i) => !isScenario || i === 0)
-            ).map((protocol, i) => (
-              <div
-                key={i}
-                className="group relative bg-white rounded-xl border border-slate-100 p-4 md:p-5 shadow-sm hover:shadow-md hover:border-emerald-400 transition-all cursor-pointer"
-              >
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 rounded-l-xl" />
-                <h3 className="font-bold text-xs text-slate-800 mb-1">
-                  {isScenario
-                    ? "Prepare customer status banner"
-                    : protocol.title}
-                </h3>
-                <p className="text-[10px] md:text-[11px] text-slate-400 leading-relaxed italic">
-                  {isScenario
-                    ? "Mitigates trust damage if errors manifest."
-                    : protocol.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-4 md:space-y-5">
-          <div
-            className={`flex items-center gap-2 ${isScenario ? "text-indigo-600" : "text-amber-600"}`}
-          >
-            <Zap size={16} />
-            <span className="text-[10px] font-black uppercase tracking-widest">
-              {isScenario ? "Targeted Response" : "Conditional Strategy"}
-            </span>
-          </div>
-
-          <div
-            className={`relative rounded-xl border p-4 md:p-5 border-l-4 transition-all ${isScenario ? "bg-indigo-50 border-indigo-200 border-l-indigo-600" : "bg-amber-50 border-amber-200 border-l-amber-500"}`}
-          >
-            <h3
-              className={`font-bold text-xs mb-2 ${isScenario ? "text-indigo-900" : "text-amber-900"}`}
-            >
-              {isScenario
-                ? "Execute mitigation for verified path"
-                : isSimulated
-                  ? simulatedContent.conditional.title
-                  : "If checkout errors rise (O2)"}
-            </h3>
-            <p
-              className={`text-[10px] md:text-[11px] leading-relaxed mb-4 ${isScenario ? "text-indigo-800/70" : "text-amber-800/70"}`}
-            >
-              {isScenario
-                ? "Rollback latest deploy and redirect all APAC gateway traffic to secondary provider."
-                : isSimulated
-                  ? simulatedContent.conditional.desc
-                  : "Initiate emergency rollback. Requires O2 signal verification."}
-            </p>
-            <button
-              className={`w-full py-2 bg-white border text-[9px] md:text-[10px] font-black uppercase tracking-widest rounded transition-colors ${isScenario ? "border-indigo-200 text-indigo-700 hover:bg-indigo-100 shadow-sm" : "border-amber-200 text-amber-700 hover:bg-amber-100 shadow-sm"}`}
-            >
-              {isScenario ? "Authorize Plan" : "View Requirements"}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-6 md:p-8 border-t border-slate-100 bg-white shrink-0">
-        <button className="w-full h-12 md:h-14 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-xl active:scale-95 group">
-          {isScenario ? "CONFIRM ACTION" : "ACTIVATE PROTOCOL"}
-          <ArrowRight
-            size={14}
-            className="group-hover:translate-x-1 transition-transform"
-          />
-        </button>
       </div>
     </aside>
   );
