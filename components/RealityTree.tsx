@@ -6,7 +6,7 @@ import React, {
   useCallback,
 } from "react";
 import { RealityNode } from "../types/reality-tree";
-import { Search, History } from "lucide-react";
+import { Search, History, TrendingUp } from "lucide-react";
 
 interface Props {
   activeNode: RealityNode;
@@ -33,7 +33,7 @@ const RealityTree: React.FC<Props> = ({
 
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   const NODE_WIDTH = isMobile ? 220 : 280;
-  const NODE_HEIGHT = isMobile ? 120 : 160;
+  const NODE_HEIGHT = isMobile ? 100 : 130;
 
   const centerTree = useCallback(() => {
     if (containerRef.current) {
@@ -47,155 +47,168 @@ const RealityTree: React.FC<Props> = ({
 
   useEffect(() => {
     centerTree();
-
-    const observer = new ResizeObserver(() => {
-      requestAnimationFrame(centerTree);
-    });
-
+    const observer = new ResizeObserver(() =>
+      requestAnimationFrame(centerTree),
+    );
     if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, [centerTree]);
 
-  const structure = useMemo(() => {
+  const nodes = useMemo(() => {
     const spacing = isMobile ? 400 : 550;
 
-    if (!isSimulated) {
-      return {
-        root: { x: 0, y: 0, title: "Customers complaining (tickets spiked)" },
-        outcomes: [
+    const baseNodes = [
+      {
+        id: "ROOT_INIT",
+        title: "Customers complaining (tickets spiked)",
+        isInitialRoot: true,
+        x: isSimulated ? -spacing : 0,
+        y: 0,
+        type: isSimulated ? "past" : "live",
+        facts: ["Ticket count > 450/hr", "APAC latency detected"],
+      },
+      {
+        id: "O1",
+        title: "More failed checkouts",
+        prob: 0.35,
+        x: isSimulated ? 0 : spacing,
+        y: isSimulated ? -250 : -300,
+        type: isSimulated ? "past" : "outcome",
+        opacity: isSimulated ? 0.3 : 1,
+      },
+      {
+        id: "O2",
+        title: "Checkout errors rise",
+        prob: 0.45,
+        is_high_prob: true,
+        x: isSimulated ? 0 : spacing,
+        y: 0,
+        type: isSimulated ? "live" : "outcome",
+        facts: isSimulated
+          ? ["Error rate increased to 2.4%", "Stripe API returning 403s"]
+          : [],
+      },
+      {
+        id: "O3",
+        title: "Partner traffic quality drops",
+        prob: 0.15,
+        x: isSimulated ? 0 : spacing,
+        y: isSimulated ? 250 : 300,
+        type: isSimulated ? "past" : "outcome",
+        opacity: isSimulated ? 0.3 : 1,
+      },
+      {
+        id: "O4",
+        title: "Stabilizes (no worsening)",
+        prob: 0.05,
+        x: isSimulated ? 0 : spacing,
+        y: isSimulated ? 500 : 600,
+        type: isSimulated ? "past" : "outcome",
+        opacity: isSimulated ? 0.3 : 1,
+      },
+    ];
+
+    const simulatedOutcomes = [
+      {
+        id: "O2A",
+        parentId: "O2",
+        title: "Revenue drops today",
+        prob: 0.55,
+        is_high_prob: true,
+        x: spacing,
+        y: -200,
+        type: "outcome",
+      },
+      {
+        id: "O2B",
+        parentId: "O2",
+        title: "Refunds increase",
+        prob: 0.25,
+        x: spacing,
+        y: 100,
+        type: "outcome",
+      },
+      {
+        id: "O2C",
+        parentId: "O2",
+        title: "Stabilizes after rollback",
+        prob: 0.2,
+        x: spacing,
+        y: 400,
+        type: "outcome",
+      },
+    ];
+
+    return [
+      ...baseNodes,
+      ...simulatedOutcomes.map((o) => ({
+        ...o,
+        x: isSimulated ? o.x : spacing,
+        y: isSimulated ? o.y : 0,
+        opacity: isSimulated ? 1 : 0,
+        scale: isSimulated ? 1 : 0.5,
+      })),
+    ];
+  }, [isMobile, isSimulated]);
+
+  const ghosts = useMemo(() => {
+    const gMap: Record<string, { id: string; title: string; desc: string }[]> =
+      {
+        O1: [
           {
-            id: "O1",
-            x: spacing,
-            y: -200,
-            title: "More failed checkouts",
-            signal: "Source: Payment failures increase",
-            prob: 0.35,
+            id: "G1A",
+            title: "Provider alert triggers",
+            desc: "Critical infrastructure failure suspected.",
           },
           {
-            id: "O2",
-            x: spacing,
-            y: 0,
-            title: "Checkout errors rise",
-            signal: "Source: Latency breaches",
-            prob: 0.45,
-            is_high_prob: true,
-          },
-          {
-            id: "O3",
-            x: spacing,
-            y: 200,
-            title: "Partner traffic quality drops",
-            signal: "Source: Conversion falls",
-            prob: 0.15,
-          },
-          {
-            id: "O4",
-            x: spacing,
-            y: 400,
-            title: "Stabilizes (no worsening)",
-            signal: "Source: Tickets flatten",
-            prob: 0.05,
+            id: "G1B",
+            title: "Cart abandonment up",
+            desc: "Direct revenue loss due to flow disruption.",
           },
         ],
-        ghosts: {
-          O1: [
-            {
-              id: "G1A",
-              title: "Provider alert triggers",
-              desc: "Critical infrastructure failure suspected.",
-            },
-            {
-              id: "G1B",
-              title: "Cart abandonment up",
-              desc: "Direct revenue loss due to flow disruption.",
-            },
-          ],
-          O2: [
-            {
-              id: "G2A",
-              title: "Revenue drops today",
-              desc: "Projected -12% delta based on latency.",
-            },
-            {
-              id: "G2B",
-              title: "Refunds increase",
-              desc: "Expect spike in ticket volume.",
-            },
-          ],
-          O3: [
-            {
-              id: "G3A",
-              title: "Partner Y attrition",
-              desc: "Cohort-specific attrition confirmed.",
-            },
-            {
-              id: "G3B",
-              title: "Scam complaints",
-              desc: "Brand reputation risk if ads remain misaligned.",
-            },
-          ],
-          O4: [
-            {
-              id: "G4A",
-              title: "Volume recovers",
-              desc: "Temporary glitch resolved; baseline stable.",
-            },
-            {
-              id: "G4B",
-              title: "Conversion recovers",
-              desc: "Users successfully completing flows.",
-            },
-          ],
-        },
-      };
-    }
-
-    return {
-      pastRoot: {
-        x: -400,
-        y: 0,
-        title: "Customers complaining (tickets spiked)",
-      },
-      root: { x: 0, y: 0, title: "Checkout errors are rising" },
-      outcomes: [
-        {
-          id: "O2A",
-          x: spacing,
-          y: -150,
-          title: "Revenue drops today",
-          signal: "Source: APAC P95 Breach",
-          prob: 0.55,
-          is_high_prob: true,
-        },
-        {
-          id: "O2B",
-          x: spacing,
-          y: 50,
-          title: "Refunds increase",
-          signal: "Source: Dispute volume spike",
-          prob: 0.25,
-        },
-        {
-          id: "O2C",
-          x: spacing,
-          y: 250,
-          title: "Stabilizes after rollback",
-          signal: "Source: Release candidate healthy",
-          prob: 0.2,
-        },
-      ],
-      collapsedOutcomes: [
-        { id: "O1", x: 0, y: -250, title: "Failed checkouts", prob: 0.18 },
-        { id: "O3", x: 0, y: 250, title: "Partner quality drops", prob: 0.07 },
-        {
-          id: "O4",
-          x: 0,
-          y: 400,
-          title: "Stabilizes (no worsening)",
-          prob: 0.02,
-        },
-      ],
-      ghosts: {
+        O2: isSimulated
+          ? []
+          : [
+              {
+                id: "G2A",
+                title: "Revenue drops today",
+                desc: "Projected -12% delta based on latency.",
+              },
+              {
+                id: "G2B",
+                title: "Refunds increase",
+                desc: "Expect spike in ticket volume.",
+              },
+              {
+                id: "G2C",
+                title: "Stabilizes after rollback",
+                desc: "Verify fix success & document root cause.",
+              },
+            ],
+        O3: [
+          {
+            id: "G3A",
+            title: "Partner Y attrition",
+            desc: "Cohort-specific attrition confirmed.",
+          },
+          {
+            id: "G3B",
+            title: "Scam complaints",
+            desc: "Brand reputation risk if ads remain misaligned.",
+          },
+        ],
+        O4: [
+          {
+            id: "G4A",
+            title: "Volume recovers",
+            desc: "Temporary glitch resolved; baseline stable.",
+          },
+          {
+            id: "G4B",
+            title: "Conversion recovers",
+            desc: "Users successfully completing flows.",
+          },
+        ],
         O2A: [
           {
             id: "G2AA",
@@ -214,10 +227,27 @@ const RealityTree: React.FC<Props> = ({
             title: "Trust deficit",
             desc: "Long term churn for affected APAC cohort.",
           },
+          {
+            id: "G2BB",
+            title: "Competitor Migration",
+            desc: "Users switching to alternative platforms during downtime.",
+          },
         ],
-      },
-    };
-  }, [isMobile, isSimulated]);
+        O2C: [
+          {
+            id: "G2CA",
+            title: "Full System Audit",
+            desc: "Verifying root cause across all clusters.",
+          },
+          {
+            id: "G2CB",
+            title: "Baseline Restored",
+            desc: "Conversion rates returning to pre-incident levels.",
+          },
+        ],
+      };
+    return gMap;
+  }, [isSimulated]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest(".reality-node")) return;
@@ -233,71 +263,80 @@ const RealityTree: React.FC<Props> = ({
     });
   };
 
-  const renderPaths = () => {
-    const rootX = structure.root.x + NODE_WIDTH;
-    const rootY = structure.root.y + NODE_HEIGHT / 2;
+  const ghostXDest = isMobile
+    ? (isMobile ? 400 : 550) + NODE_WIDTH + 150
+    : (isMobile ? 400 : 550) + NODE_WIDTH + 350;
 
+  const renderPaths = () => {
     return (
       <>
-        {isSimulated && (
-          <path
-            d={`M ${structure.pastRoot!.x + NODE_WIDTH} ${structure.pastRoot!.y + NODE_HEIGHT / 2} C ${structure.pastRoot!.x + NODE_WIDTH + 150} ${structure.pastRoot!.y + NODE_HEIGHT / 2}, ${structure.root.x - 150} ${rootY}, ${structure.root.x} ${rootY}`}
-            className="fill-none stroke-slate-300 stroke-[4] stroke-dasharray-[8,4]"
-          />
-        )}
+        {nodes
+          .filter((n) => ["O1", "O2", "O3", "O4"].includes(n.id))
+          .map((n) => {
+            const root = nodes.find((r) => r.id === "ROOT_INIT")!;
+            const startX = root.x + NODE_WIDTH;
+            const startY = root.y + NODE_HEIGHT / 2;
+            const endX = n.x;
+            const endY = n.y + NODE_HEIGHT / 2;
+            const isActive = n.id === "O2";
+            return (
+              <path
+                key={`p-root-${n.id}`}
+                d={`M ${startX} ${startY} C ${startX + 150} ${startY}, ${endX - 150} ${endY}, ${endX} ${endY}`}
+                className={`fill-none transition-all duration-700 ${isActive ? "stroke-amber-500 stroke-[4] animate-dash" : "stroke-slate-200 stroke-[2]"} ${n.opacity === 0 ? "opacity-0" : "opacity-100"}`}
+                style={{ strokeDasharray: isActive ? "4 4" : "6 4" }}
+              />
+            );
+          })}
 
-        {structure.outcomes.map((out) => {
-          const endX = out.x;
-          const endY = out.y + 100 / 2;
-          const isActivePath = out.is_high_prob;
+        {nodes
+          .filter((n) => (n as any).parentId === "O2")
+          .map((n) => {
+            const parent = nodes.find((p) => p.id === "O2")!;
+            const startX = parent.x + NODE_WIDTH;
+            const startY = parent.y + NODE_HEIGHT / 2;
+            const endX = n.x;
+            const endY = n.y + NODE_HEIGHT / 2;
+            const isActive = n.is_high_prob;
+            const nodeOpacity = (n as any).opacity ?? 1;
 
-          return (
-            <path
-              key={`p-root-${out.id}`}
-              d={`M ${rootX} ${rootY} C ${rootX + 120} ${rootY}, ${endX - 120} ${endY}, ${endX} ${endY}`}
-              className={`fill-none transition-all duration-700 ${
-                isActivePath
-                  ? "stroke-amber-500 stroke-[4] animate-dash"
-                  : "stroke-slate-200 stroke-[2]"
-              }`}
-              style={{ strokeDasharray: isActivePath ? "4 4" : "6 4" }}
-            />
-          );
+            return (
+              <path
+                key={`p-o2-${n.id}`}
+                d={`M ${startX} ${startY} C ${startX + 150} ${startY}, ${endX - 150} ${endY}, ${endX} ${endY}`}
+                className={`fill-none transition-all duration-700 ${isActive ? "stroke-amber-500 stroke-[4] animate-dash" : "stroke-slate-200 stroke-[2]"} ${nodeOpacity === 0 ? "opacity-0" : "opacity-100"}`}
+                style={{ strokeDasharray: isActive ? "4 4" : "6 4" }}
+              />
+            );
+          })}
+
+        {Object.entries(ghosts).map(([parentId, gs]) => {
+          const parent = nodes.find((o) => o.id === parentId);
+          if (!parent) return null;
+
+          const startX = parent.x + NODE_WIDTH;
+          const startY = parent.y + NODE_HEIGHT / 2;
+          const isExpanded = selectedOutcomeId === parentId;
+
+          return gs.map((g, i) => {
+            const destY =
+              parent.y -
+              (isMobile ? 80 : 120) +
+              i * (isMobile ? 180 : 250) +
+              NODE_HEIGHT / 2;
+            const endX = isExpanded ? ghostXDest : startX;
+            const endY = isExpanded ? destY : startY;
+
+            return (
+              <path
+                key={`p-ghost-${g.id}`}
+                d={`M ${startX} ${startY} C ${startX + 100} ${startY}, ${endX - 100} ${endY}, ${endX} ${endY}`}
+                className={`fill-none transition-all duration-500 ease-in-out ${isExpanded ? "stroke-indigo-400 stroke-[2] opacity-100" : "stroke-indigo-200 stroke-[1] opacity-0"}`}
+                style={{ strokeDasharray: "4,4" }}
+              />
+            );
+          });
         })}
-
-        {isSimulated &&
-          structure.collapsedOutcomes?.map((out) => (
-            <path
-              key={`p-past-${out.id}`}
-              d={`M ${structure.pastRoot!.x + NODE_WIDTH} ${structure.pastRoot!.y + NODE_HEIGHT / 2} C ${structure.pastRoot!.x + NODE_WIDTH + 100} ${structure.pastRoot!.y + NODE_HEIGHT / 2}, ${out.x - 100} ${out.y + 100 / 2}, ${out.x} ${out.y + 100 / 2}`}
-              className="fill-none stroke-slate-100 stroke-[1.5]"
-            />
-          ))}
-
-        {selectedOutcomeId &&
-          (structure.ghosts as any)[selectedOutcomeId]?.map(
-            (g: any, i: number) => {
-              const out = structure.outcomes.find(
-                (o) => o.id === selectedOutcomeId,
-              )!;
-              const startX = out.x + NODE_WIDTH;
-              const startY = out.y + 100 / 2;
-              const ghostX = isMobile ? 750 : 1000;
-              const endY =
-                out.y -
-                (isMobile ? 60 : 80) +
-                i * (isMobile ? 120 : 160) +
-                (isMobile ? 100 : 130) / 2;
-
-              return (
-                <path
-                  key={`p-ghost-${g.id}`}
-                  d={`M ${startX} ${startY} C ${startX + 120} ${startY}, ${ghostX - 120} ${endY}, ${ghostX} ${endY}`}
-                  className="fill-none stroke-indigo-400 stroke-[2] stroke-dasharray-[4,4]"
-                />
-              );
-            },
-          )}
       </>
     );
   };
@@ -309,10 +348,11 @@ const RealityTree: React.FC<Props> = ({
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={() => setIsDragging(false)}
-      onWheel={(e) => {
-        const delta = e.deltaY * -0.001;
-        setScale((prev) => Math.min(Math.max(0.4, prev + delta), 1.5));
-      }}
+      onWheel={(e) =>
+        setScale((prev) =>
+          Math.min(Math.max(0.4, prev + e.deltaY * -0.001), 1.5),
+        )
+      }
     >
       <div
         className="absolute inset-0 transition-transform duration-75 ease-out origin-center"
@@ -324,177 +364,147 @@ const RealityTree: React.FC<Props> = ({
           {renderPaths()}
         </svg>
 
-        {/* LAYER 0: PAST ROOT */}
-        {isSimulated && structure.pastRoot && (
-          <div
-            className="reality-node absolute transition-all duration-500 rounded-xl p-5 md:p-7 flex flex-col shadow-lg bg-slate-50 border border-slate-200 opacity-60 z-10"
-            style={{
-              left: structure.pastRoot.x,
-              top: structure.pastRoot.y,
-              width: NODE_WIDTH,
-              height: 100,
-            }}
-          >
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-[8px] md:text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded flex items-center gap-1 bg-slate-200 text-slate-500">
-                <History size={10} /> Past State
-              </span>
-            </div>
-            <h3 className="font-bold text-slate-400 text-sm md:text-base leading-tight">
-              {structure.pastRoot.title}
-            </h3>
-          </div>
-        )}
+        {nodes.map((n: any) => {
+          const isSelected = selectedNodeId === n.id;
 
-        {/* LAYER 1: ACTIVE ROOT */}
-        <div
-          className={`reality-node absolute transition-all duration-700 rounded-xl p-5 md:p-7 flex flex-col shadow-2xl z-50
-            ${isSimulated ? "bg-white border-2 border-orange-500 shadow-orange-100" : "bg-white border-2 border-slate-900"}
-          `}
-          style={{
-            left: structure.root.x,
-            top: structure.root.y,
-            width: NODE_WIDTH,
-            minHeight: NODE_HEIGHT,
-          }}
-        >
-          <div className="flex justify-between items-start mb-2 md:mb-3">
-            <span
-              className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded flex items-center gap-1
-              ${isSimulated ? "bg-orange-500 text-white" : "bg-slate-900 text-white"}
-            `}
-            >
-              Live State
-            </span>
-          </div>
-
-          <h3 className="font-black text-slate-800 text-sm md:text-base leading-tight mb-2">
-            {activeNode.title}
-          </h3>
-
-          <div className="space-y-1 mt-auto">
-            {activeNode.facts?.map((f, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-2 text-[9px] md:text-[10px] text-slate-500"
-              >
-                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full shrink-0" />
-                <span className="leading-tight">{f}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* LAYER 2: OUTCOMES */}
-        {structure.outcomes.map((out) => (
-          <div
-            key={out.id}
-            onClick={() =>
-              onSelectBranch(selectedOutcomeId === out.id ? null : out.id)
-            }
-            className={`reality-node absolute transition-all duration-300 cursor-pointer rounded-xl p-4 md:p-6 flex flex-col border shadow-sm z-30
-              ${out.is_high_prob ? "bg-white border-amber-500 border-2 shadow-xl ring-8 ring-amber-50" : "bg-white border-slate-200"}
-              ${selectedNodeId === out.id ? "scale-105 border-indigo-500 ring-4 md:ring-8 ring-indigo-50" : "hover:border-slate-400"}
-            `}
-            style={{
-              left: out.x,
-              top: out.y,
-              width: NODE_WIDTH,
-              minHeight: 100,
-            }}
-          >
-            {selectedNodeId === out.id && (
-              <span className="absolute -top-3 left-4 bg-indigo-600 text-white text-[8px] md:text-[9px] font-black uppercase px-2 py-1 rounded shadow-lg flex items-center gap-1 z-50">
-                <Search size={10} /> Preview
-              </span>
-            )}
-            <div className="flex justify-between items-start mb-2">
-              <h4 className="font-bold text-slate-800 text-xs md:text-sm leading-tight max-w-[70%]">
-                {out.title}
-              </h4>
-              <span
-                className={`text-[9px] md:text-[10px] font-mono font-black ${out.is_high_prob ? "text-amber-600" : "text-slate-400"}`}
-              >
-                {Math.round(out.prob * 100)}% Likely
-              </span>
-            </div>
-            <p className="text-[8px] md:text-[10px] text-slate-500 font-medium italic mt-auto">
-              {out.signal}
-            </p>
-          </div>
-        ))}
-
-        {/* LAYER 2b: COLLAPSED PAST OUTCOMES */}
-        {isSimulated &&
-          structure.collapsedOutcomes?.map((out) => (
+          return (
             <div
-              key={`collapsed-${out.id}`}
-              className="reality-node absolute transition-all duration-500 rounded-xl p-4 flex flex-col border border-slate-100 bg-white/40 opacity-30 z-5 select-none pointer-events-none"
+              key={n.id}
+              onClick={() => {
+                if (n.type === "live" || n.type === "past") {
+                  onSelectBranch(null);
+                  onSelectNode(null);
+                } else {
+                  onSelectBranch(selectedOutcomeId === n.id ? null : n.id);
+                }
+              }}
+              className={`reality-node absolute transition-all duration-700 ease-in-out flex flex-col shadow-2xl z-50 rounded-2xl
+                ${n.type === "live" ? (isSimulated ? "bg-white border-2 border-orange-500 shadow-orange-200 ring-8 ring-orange-100" : "bg-white border-2 border-slate-900 shadow-slate-200") : ""}
+                ${n.type === "past" ? "bg-slate-50 border border-slate-200 opacity-60 grayscale shadow-none rounded-xl" : ""}
+                ${n.type === "outcome" ? "bg-white border shadow-md rounded-2xl " + (n.is_high_prob ? "border-amber-500 border-2 shadow-amber-100 ring-8 ring-amber-50" : "border-slate-200") : ""}
+                ${isSelected ? "scale-105 border-indigo-500 ring-10 ring-indigo-50 shadow-indigo-100" : ""}
+                ${n.type === "outcome" || n.type === "live" ? "cursor-pointer hover:shadow-xl" : "cursor-pointer"}
+              `}
               style={{
-                left: out.x + structure.pastRoot!.x + NODE_WIDTH + 80,
-                top: out.y,
-                width: NODE_WIDTH - 40,
-                minHeight: 80,
+                left: n.x,
+                top: n.y,
+                width: NODE_WIDTH,
+                minHeight: n.type === "past" ? 80 : NODE_HEIGHT,
+                opacity: n.opacity ?? 1,
+                transform: `scale(${n.scale ?? 1})`,
+                zIndex: isSelected ? 100 : n.type === "live" ? 80 : 50,
               }}
             >
-              <div className="flex justify-between items-start">
-                <h4 className="font-bold text-slate-400 text-[10px] leading-tight max-w-[70%]">
-                  {out.title}
-                </h4>
-                <span className="text-[8px] font-mono font-bold text-slate-300">
-                  {Math.round(out.prob * 100)}%
+              {isSelected && (
+                <span className="absolute -top-4 left-6 bg-indigo-600 text-white text-[9px] md:text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-2xl flex items-center gap-1.5 z-50">
+                  <Search size={12} /> Previewing
                 </span>
-              </div>
-            </div>
-          ))}
+              )}
 
-        {/* LAYER 3: GHOST FUTURES */}
-        {selectedOutcomeId &&
-          (structure.ghosts as any)[selectedOutcomeId]?.map(
-            (g: any, i: number) => (
+              <div
+                className={`flex justify-between items-start mb-2 pb-0 ${n.type === "live" ? "p-6 md:p-8" : "p-5 md:p-7"}`}
+              >
+                <div className="flex flex-col gap-2">
+                  {n.type === "live" && (
+                    <span
+                      className={`text-[8px] md:text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md flex items-center gap-1.5 w-fit
+                            ${isSimulated ? "bg-orange-500 text-white shadow-lg shadow-orange-200" : "bg-slate-900 text-white"}`}
+                    >
+                      <TrendingUp size={10} /> Live State
+                    </span>
+                  )}
+                  {n.type === "past" && (
+                    <span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md flex items-center gap-1 w-fit bg-slate-200 text-slate-500">
+                      <History size={10} /> Past State
+                    </span>
+                  )}
+                  <h3
+                    className={`font-black leading-tight tracking-tight ${n.type === "past" ? "text-slate-400 text-sm md:text-base" : "text-slate-900 text-base md:text-xl"}`}
+                  >
+                    {n.title}
+                  </h3>
+                </div>
+
+                {n.type === "outcome" && (
+                  <div className="flex flex-col items-end">
+                    <span
+                      className={`text-[11px] md:text-[14px] font-black ${n.is_high_prob ? "text-amber-600" : "text-slate-400"}`}
+                    >
+                      {Math.round(n.prob * 100)}%
+                    </span>
+                    <span className="text-[7px] md:text-[8px] font-bold text-slate-300 uppercase tracking-tighter">
+                      Likeliness
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {n.facts && n.facts.length > 0 && n.type === "live" && (
+                <div
+                  className={`pt-1 space-y-1.5 mb-6 ${n.type === "live" ? "px-6 md:px-8" : "px-5 md:px-7"}`}
+                >
+                  {n.facts.map((f: string, i: number) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-2.5 text-[10px] md:text-[11px] text-slate-500 font-bold"
+                    >
+                      <div className="w-1.5 h-1.5 bg-slate-300 rounded-full shrink-0" />
+                      <span className="leading-tight opacity-70">{f}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {Object.entries(ghosts).map(([parentId, gs]) => {
+          const parent = nodes.find((o) => o.id === parentId);
+          if (!parent) return null;
+          const isExpanded = selectedOutcomeId === parentId;
+
+          return gs.map((g, i) => {
+            const destY =
+              parent.y - (isMobile ? 80 : 120) + i * (isMobile ? 180 : 250);
+            const x = isExpanded ? ghostXDest : parent.x;
+            const y = isExpanded ? destY : parent.y;
+
+            return (
               <div
                 key={g.id}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelectNode(selectedNodeId === g.id ? null : g.id);
                 }}
-                className={`reality-node absolute bg-white border border-dashed transition-all duration-300 cursor-pointer rounded-2xl p-5 md:p-7 flex flex-col opacity-90 shadow-2xl animate-in zoom-in-95 duration-300 z-10
-                  ${selectedNodeId === g.id ? "border-indigo-500 ring-4 md:ring-8 ring-indigo-50 scale-105" : "border-indigo-200 hover:border-indigo-400"}
-                `}
+                className={`reality-node absolute bg-white border border-dashed transition-all duration-500 ease-in-out cursor-pointer rounded-2xl p-5 md:p-7 flex flex-col shadow-2xl z-10
+                  ${isExpanded ? "opacity-95 scale-100 pointer-events-auto" : "opacity-0 scale-50 pointer-events-none"}
+                  ${selectedNodeId === g.id ? "border-indigo-500 ring-4 md:ring-10 ring-indigo-50 scale-105" : "border-indigo-200 hover:border-indigo-400"}`}
                 style={{
-                  left: isMobile ? 750 : 1000,
-                  top:
-                    structure.outcomes.find((o) => o.id === selectedOutcomeId)!
-                      .y -
-                    (isMobile ? 60 : 80) +
-                    i * (isMobile ? 120 : 160),
-                  width: isMobile ? 260 : 320,
+                  left: x,
+                  top: y,
+                  width: isMobile ? 240 : 300,
                   minHeight: isMobile ? 100 : 130,
+                  transitionDelay: isExpanded ? `${i * 100}ms` : "0ms",
                 }}
               >
                 {selectedNodeId === g.id && (
-                  <span className="absolute -top-3 left-4 bg-indigo-600 text-white text-[8px] md:text-[9px] font-black uppercase px-2 py-1 rounded shadow-lg flex items-center gap-1 z-50">
-                    <Search size={10} /> Preview
+                  <span className="absolute -top-4 left-6 bg-indigo-600 text-white text-[9px] md:text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-2xl flex items-center gap-1.5 z-50">
+                    <Search size={12} /> Previewing
                   </span>
                 )}
-                <span className="text-[8px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-2 block">
-                  Future Probability
+                <span className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-2 block">
+                  Next Reality
                 </span>
-                <h5 className="font-black text-slate-800 text-sm md:text-base mb-1 leading-tight">
+                <h5 className="font-black text-slate-900 text-sm md:text-base mb-2 leading-tight">
                   {g.title}
                 </h5>
-                <p className="text-[10px] md:text-[12px] text-slate-500 leading-tight mb-2">
+                <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
                   {g.desc}
                 </p>
-                <div className="mt-auto pt-2 md:pt-3 border-t border-indigo-50 flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-200" />
-                  <span className="text-[8px] font-bold text-indigo-400 uppercase tracking-widest">
-                    Projection
-                  </span>
-                </div>
               </div>
-            ),
-          )}
+            );
+          });
+        })}
       </div>
     </div>
   );
