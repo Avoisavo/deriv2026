@@ -12,6 +12,63 @@ const geistMono = Geist_Mono({
 });
 
 export default function Home() {
+  const [expandedBranchId, setExpandedBranchId] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [isPanelOpen, setIsPanelOpen] = useState<boolean>(false);
+  const [isSimulated, setIsSimulated] = useState<boolean>(false);
+  const [toast, setToast] = useState<{ title: string; msg: string } | null>(
+    null,
+  );
+
+  const triggerSimulation = () => {
+    setToast({
+      title: "New evidence received",
+      msg: "APAC checkout error rate increased (0.3% → 2.1%)",
+    });
+
+    setTimeout(() => {
+      setIsSimulated(true);
+      setExpandedBranchId(null);
+      setSelectedNodeId(null);
+    }, 1500);
+
+    setTimeout(() => setToast(null), 6000);
+  };
+
+  const activeNode: RealityNode = isSimulated
+    ? {
+        id: "S2",
+        type: "present",
+        title: "Checkout errors are rising",
+        metric: "Confirmed via APAC Telemetry • Just now",
+        status: "LIVE",
+        facts: [
+          "APAC checkout error rate: 2.1% (was 0.3%)",
+          "P95 checkout latency: 1.9s (was 0.8s)",
+        ],
+        beliefs: [
+          { label: "Likelihood: Recent deploy caused regression", val: 70 },
+          { label: "Likelihood: Infrastructure saturation", val: 20 },
+          { label: "Likelihood: Payment provider instability", val: 10 },
+        ],
+      }
+    : {
+        id: "S1",
+        type: "present",
+        title: "Customers complaining (tickets spiked)",
+        metric: "Detected via API • 12s ago",
+        status: "LIVE",
+        facts: [
+          "APAC support tickets +42% in last 30 min",
+          "Most complaints mention: slow checkout",
+        ],
+        beliefs: [
+          { label: "Likelihood: Checkout system getting slower", val: 55 },
+          { label: "Likelihood: Bad traffic from partner campaign", val: 30 },
+          { label: "Likelihood: Competitor price drop", val: 15 },
+        ],
+      };
+
   return (
     <>
       <Head>
