@@ -45,14 +45,13 @@ export default function Home() {
             TRUMAN
           </h1>
           <p className="max-w-3xl text-2xl md:text-3xl text-white/90 font-light tracking-wide leading-relaxed drop-shadow-xl">
-            A platform that simulates multiple possible business realities and
-            guides decisions as the real one unfolds
+            Simulate business realities and guide decisions in real-time.
           </p>
         </div>
 
         {/* Bottom Content: Button */}
         <div className="z-10 mb-8">
-          <Link href="/simulation">
+          <Link href="/dashboard">
             <button className="group relative px-10 py-4 text-xl font-semibold text-white overflow-hidden transition-all duration-500 hover:scale-105 active:scale-95 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] rounded-full border border-white/20 backdrop-blur-md bg-white/10">
               {/* Liquid Glass Highlight */}
               <div className="absolute inset-0 bg-gradient-to-tr from-white/20 via-transparent to-transparent opacity-50 transition-opacity group-hover:opacity-80" />
