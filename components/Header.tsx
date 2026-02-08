@@ -40,8 +40,9 @@ const Header: React.FC = () => {
         {/* NAVIGATION LINKS */}
         <nav className="flex items-center gap-8">
           <Link
-            href="#"
-            className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-900 transition-colors pointer-events-none opacity-50"
+            href="/dashboard"
+            className={`text-[11px] font-black uppercase tracking-[0.2em] transition-colors hover:text-slate-900 
+              ${currentPath === "/dashboard" ? "text-slate-900" : "text-slate-400"}`}
           >
             Dashboard
           </Link>
