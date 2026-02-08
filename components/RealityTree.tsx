@@ -152,100 +152,117 @@ const RealityTree: React.FC<Props> = ({
   }, [isMobile, isSimulated]);
 
   const ghosts = useMemo(() => {
-    const gMap: Record<string, { id: string; title: string; desc: string }[]> =
-      {
-        O1: [
-          {
-            id: "G1A",
-            title: "Provider alert triggers",
-            desc: "Critical infrastructure failure suspected.",
-          },
-          {
-            id: "G1B",
-            title: "Cart abandonment up",
-            desc: "Direct revenue loss due to flow disruption.",
-          },
-        ],
-        O2: isSimulated
-          ? []
-          : [
-              {
-                id: "G2A",
-                title: "Revenue drops today",
-                desc: "Projected -12% delta based on latency.",
-              },
-              {
-                id: "G2B",
-                title: "Refunds increase",
-                desc: "Expect spike in ticket volume.",
-              },
-              {
-                id: "G2C",
-                title: "Stabilizes after rollback",
-                desc: "Verify fix success & document root cause.",
-              },
-            ],
-        O3: [
-          {
-            id: "G3A",
-            title: "Partner Y attrition",
-            desc: "Cohort-specific attrition confirmed.",
-          },
-          {
-            id: "G3B",
-            title: "Scam complaints",
-            desc: "Brand reputation risk if ads remain misaligned.",
-          },
-        ],
-        O4: [
-          {
-            id: "G4A",
-            title: "Volume recovers",
-            desc: "Temporary glitch resolved; baseline stable.",
-          },
-          {
-            id: "G4B",
-            title: "Conversion recovers",
-            desc: "Users successfully completing flows.",
-          },
-        ],
-        O2A: [
-          {
-            id: "G2AA",
-            title: "Manual override triggered",
-            desc: "Systems rerouting to secondary region.",
-          },
-          {
-            id: "G2AB",
-            title: "Shareholder impact",
-            desc: "Public disclosure required for significant delta.",
-          },
-        ],
-        O2B: [
-          {
-            id: "G2BA",
-            title: "Trust deficit",
-            desc: "Long term churn for affected APAC cohort.",
-          },
-          {
-            id: "G2BB",
-            title: "Competitor Migration",
-            desc: "Users switching to alternative platforms during downtime.",
-          },
-        ],
-        O2C: [
-          {
-            id: "G2CA",
-            title: "Full System Audit",
-            desc: "Verifying root cause across all clusters.",
-          },
-          {
-            id: "G2CB",
-            title: "Baseline Restored",
-            desc: "Conversion rates returning to pre-incident levels.",
-          },
-        ],
-      };
+    const gMap: Record<
+      string,
+      { id: string; title: string; desc: string; prob?: number }[]
+    > = {
+      O1: [
+        {
+          id: "G1A",
+          title: "Provider alert triggers",
+          desc: "Critical infrastructure failure suspected.",
+          prob: 0.65,
+        },
+        {
+          id: "G1B",
+          title: "Cart abandonment up",
+          desc: "Direct revenue loss due to flow disruption.",
+          prob: 0.35,
+        },
+      ],
+      O2: isSimulated
+        ? []
+        : [
+            {
+              id: "G2A",
+              title: "Revenue drops today",
+              desc: "Projected -12% delta based on latency.",
+              prob: 0.75,
+            },
+            {
+              id: "G2B",
+              title: "Refunds increase",
+              desc: "Expect spike in ticket volume.",
+              prob: 0.25,
+            },
+            {
+              id: "G2C",
+              title: "Stabilizes after rollback",
+              desc: "Verify fix success & document root cause.",
+              prob: 0.05, // Added a small prob value for consistency
+            },
+          ],
+      O3: [
+        {
+          id: "G3A",
+          title: "Partner Y attrition",
+          desc: "Cohort-specific attrition confirmed.",
+          prob: 0.8,
+        },
+        {
+          id: "G3B",
+          title: "Scam complaints",
+          desc: "Brand reputation risk if ads remain misaligned.",
+          prob: 0.2,
+        },
+      ],
+      O4: [
+        {
+          id: "G4A",
+          title: "Volume recovers",
+          desc: "Temporary glitch resolved; baseline stable.",
+          prob: 0.9,
+        },
+        {
+          id: "G4B",
+          title: "Conversion recovers",
+          desc: "Users successfully completing flows.",
+          prob: 0.1,
+        },
+      ],
+      O2A: [
+        {
+          id: "G2AA",
+          title: "Manual override triggered",
+          desc: "Systems rerouting to secondary region.",
+          prob: 0.6,
+        },
+        {
+          id: "G2AB",
+          title: "Shareholder impact",
+          desc: "Public disclosure required for significant delta.",
+          prob: 0.4,
+        },
+      ],
+      O2B: [
+        {
+          id: "G2BA",
+          title: "Trust deficit",
+          desc: "Long term churn for affected APAC cohort.",
+          prob: 0.85,
+        },
+        {
+          id: "G2BB",
+          title: "Competitor Migration",
+          desc: "Users switching to alternative platforms during downtime.",
+          prob: 0.15,
+        },
+      ],
+      O2C: [
+        {
+          id: "G2CA",
+          title: "Full System Audit",
+          desc: "Verifying root cause across all clusters.",
+          prob: 0.55,
+        },
+        {
+          id: "G2CB",
+          title: "Baseline Restored",
+          desc: "Conversion rates returning to pre-incident levels.",
+          prob: 0.45,
+        },
+      ],
+    };
     return gMap;
   }, [isSimulated]);
 
@@ -492,9 +509,21 @@ const RealityTree: React.FC<Props> = ({
                     <Search size={12} /> Previewing
                   </span>
                 )}
-                <span className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-2 block">
-                  Next Reality
-                </span>
+                <div className="flex justify-between items-start mb-2">
+                  <span className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.2em] block">
+                    Next Reality
+                  </span>
+                  {g.prob !== undefined && (
+                    <div className="flex flex-col items-end -mt-1">
+                      <span className="text-[12px] md:text-[14px] font-black text-indigo-600">
+                        {Math.round(g.prob * 100)}%
+                      </span>
+                      <span className="text-[7px] md:text-[8px] font-bold text-slate-300 uppercase tracking-tighter">
+                        Likeliness
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <h5 className="font-black text-slate-900 text-sm md:text-base mb-2 leading-tight">
                   {g.title}
                 </h5>

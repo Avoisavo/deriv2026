@@ -358,32 +358,6 @@ const DecisionPanel: React.FC<Props> = ({ node, scenarioId, onClose }) => {
               <div className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
             </div>
 
-            {/* Belief Distribution */}
-            <div className="space-y-5">
-              <div className="flex items-center gap-2 text-slate-500">
-                <Activity size={14} />
-                <h3 className="text-[10px] font-black uppercase tracking-widest">
-                  Upcoming Belief Dist.
-                </h3>
-              </div>
-              <div className="space-y-5">
-                {currentScenario.beliefDist.map((b, i) => (
-                  <div key={i} className="space-y-2">
-                    <div className="flex justify-between text-[11px] md:text-xs font-bold text-slate-800">
-                      <span className="truncate mr-2">{b.label}</span>
-                      <span className="text-indigo-600 shrink-0">{b.val}%</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-indigo-500 rounded-full transition-all duration-1000"
-                        style={{ width: `${b.val}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {/* Actionable Recommendations (Standardized Name) */}
             <div className="space-y-5">
               <div className="flex items-center gap-2 text-slate-500">
