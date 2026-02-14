@@ -15,6 +15,15 @@ const TREE_ANGLE_SPREAD = 0.88;
 /** Minimum angular width per leaf (radians) so subtrees get non-overlapping wedges. */
 const MIN_WEDGE_RAD = 0.14;
 
+/** Payload from Supabase Realtime when a new row is inserted (realtime AI decision POC). */
+export interface RealtimeDecisionPayload {
+  prompt: string;
+  consequences: string;
+  solution: string;
+  outcome: string;
+  pathLabels?: string[];
+}
+
 export interface DecisionTreeGraphProps {
   nodes: GraphNode[];
   links: GraphLink[];
@@ -30,6 +39,10 @@ export interface DecisionTreeGraphProps {
   coreLabel?: string;
   /** Optional URL for company logo image to show in the core node. */
   coreLogoUrl?: string;
+  /** When set, overlay is shown with this content and auto-proceeds after 1s (realtime POC). */
+  realtimeDecision?: RealtimeDecisionPayload | null;
+  /** Called when overlay is closed or Proceed is clicked for a realtime decision (so parent can clear realtimeDecision). */
+  onRealtimeDecisionConsumed?: () => void;
 }
 
 type GraphNodeWithPos = GraphNode & { x?: number; y?: number; fx?: number; fy?: number };
@@ -275,6 +288,8 @@ export function DecisionTreeGraph({
   onNodeClick,
   onAddPredictionNode,
   coreLabel = CORE_LABEL,
+  realtimeDecision = null,
+  onRealtimeDecisionConsumed,
 }: DecisionTreeGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   interface ForceGraphRef {
@@ -299,7 +314,7 @@ export function DecisionTreeGraph({
   /** Flow animation: 0 = core only, 1 = core + first path node, etc. */
   const [pathFlowIndex, setPathFlowIndex] = useState(0);
   const pathFlowProgressRef = useRef(0);
-  const [showCrossDomainLinks, setShowCrossDomainLinks] = useState(true);
+  const [showCrossDomainLinks, setShowCrossDomainLinks] = useState(false);
   const effectivePathNodeIds = promptPathNodeIds
     ? [...promptPathNodeIds, ...(showPredictionNode ? [PREDICTION_NODE_ID] : [])]
     : pathNodeIds;
@@ -398,6 +413,27 @@ export function DecisionTreeGraph({
     setPromptPathNodeIds(null);
     setShowPredictionNode(false);
   }, []);
+
+  const isRealtimeOverlay = realtimeDecision != null;
+  const overlayVisible = showOverlay || isRealtimeOverlay;
+  const overlayPathLabels = isRealtimeOverlay
+    ? (realtimeDecision?.pathLabels ?? ["Realtime"])
+    : pathLabels;
+  const overlayPillCount = overlayPathLabels.length;
+  const overlayPrompt = isRealtimeOverlay ? realtimeDecision?.prompt ?? "" : planPrompt;
+  const overlayConsequences = isRealtimeOverlay ? realtimeDecision?.consequences ?? "" : planResult?.consequences;
+  const overlaySolution = isRealtimeOverlay ? realtimeDecision?.solution ?? "" : planResult?.solution;
+  const overlayOutcome = isRealtimeOverlay ? realtimeDecision?.outcome ?? "" : planResult?.predictedOutput;
+
+  const handleOverlayYesForRealtime = useCallback(() => {
+    onRealtimeDecisionConsumed?.();
+    setShowOverlay(false);
+  }, [onRealtimeDecisionConsumed]);
+
+  const handleOverlayNoOrCloseForRealtime = useCallback(() => {
+    onRealtimeDecisionConsumed?.();
+    setShowOverlay(false);
+  }, [onRealtimeDecisionConsumed]);
 
   const PATH_NODE_SIZE = 14;
   const PATH_GLOW_RADIUS = 5;
@@ -934,21 +970,22 @@ export function DecisionTreeGraph({
       />
 
       {/* Full-screen overlay: Consequences / Solution / Outcome then Yes/No modal */}
-      {showOverlay && (
+      {overlayVisible && (
         <PlanModeOverlay
-          pathLabels={pathLabels}
-          pillVisibleCount={pathLabels.length}
-          prompt={planPrompt}
+          pathLabels={overlayPathLabels}
+          pillVisibleCount={overlayPillCount}
+          prompt={overlayPrompt}
           onPromptChange={setPlanPrompt}
           onPromptSubmit={handlePromptSubmit}
           isExpanded={true}
-          consequencesText={planResult?.consequences}
-          solutionText={planResult?.solution}
-          outcomeText={planResult?.predictedOutput}
-          predictionLabel={planResult?.predictedOutput}
-          onYes={handleOverlayYes}
-          onNo={handleOverlayNo}
-          onClose={handleOverlayNo}
+          consequencesText={overlayConsequences}
+          solutionText={overlaySolution}
+          outcomeText={overlayOutcome}
+          predictionLabel={overlayOutcome}
+          onYes={isRealtimeOverlay ? handleOverlayYesForRealtime : handleOverlayYes}
+          onNo={isRealtimeOverlay ? handleOverlayNoOrCloseForRealtime : handleOverlayNo}
+          onClose={isRealtimeOverlay ? handleOverlayNoOrCloseForRealtime : handleOverlayNo}
+          autoProceedAfterMs={isRealtimeOverlay ? 1000 : undefined}
         />
       )}
     </div>

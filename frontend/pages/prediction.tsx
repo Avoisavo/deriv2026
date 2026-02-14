@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import { getMockDecisionTreeData } from "@/lib/mockDecisionTree";
 import type { DecisionTreeData } from "@/types/decision-tree";
@@ -8,7 +8,8 @@ import type { NodeDetailsMap } from "@/types/prediction";
 import { usePredictionTreeState } from "@/hooks/usePredictionTreeState";
 import { LeftSidebar } from "@/components/prediction/LeftSidebar";
 import { RightSidebar } from "@/components/prediction/RightSidebar";
-import { DecisionTreeGraph } from "@/components/prediction/DecisionTreeGraph";
+import { DecisionTreeGraph, type RealtimeDecisionPayload } from "@/components/prediction/DecisionTreeGraph";
+import { supabase, REALTIME_EVENTS_TABLE } from "@/lib/supabase";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -64,6 +65,58 @@ function PredictionTree({
   fromFile: boolean;
 }) {
   const [nodeDetailsMap, setNodeDetailsMap] = useState<NodeDetailsMap>({});
+  const [realtimeDecision, setRealtimeDecision] = useState<RealtimeDecisionPayload | null>(null);
+
+  useEffect(() => {
+    if (!supabase) {
+      console.warn("[Realtime] Supabase client missing (check NEXT_PUBLIC_SUPABASE_* env)");
+      return;
+    }
+
+    const handleRow = (payload: { prompt?: string; consequences?: string; solution?: string; outcome?: string }) => {
+      const prompt = payload.prompt ?? "";
+      const consequences = payload.consequences ?? "";
+      const solution = payload.solution ?? "";
+      const outcome = payload.outcome ?? "";
+      setRealtimeDecision({ prompt, consequences, solution, outcome });
+      fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, consequences, solution, outcome }),
+      }).catch((err) => console.error("Notify failed:", err));
+    };
+
+    supabase.realtime.connect();
+
+    const channel = supabase
+      .channel("realtime_poc_events")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: REALTIME_EVENTS_TABLE },
+        (payload) => {
+          const row = payload.new as Record<string, unknown>;
+          const title = typeof row.title === "string" ? row.title : "";
+          const summary = typeof row.summary === "string" ? row.summary : "";
+          const evidence = Array.isArray(row.evidence) ? row.evidence.filter((e): e is string => typeof e === "string") : [];
+          const solution = evidence.length ? evidence.map((e) => `• ${e}`).join("\n") : summary;
+          handleRow({
+            prompt: title,
+            consequences: summary,
+            solution,
+            outcome: title,
+          });
+        }
+      )
+      .subscribe((status, err) => {
+        if (process.env.NODE_ENV === "development") {
+          console.log("[Realtime] Subscription status:", status, err ?? "");
+        }
+      });
+
+    return () => supabase.removeChannel(channel);
+  }, []);
+
+  const handleRealtimeDecisionConsumed = useCallback(() => setRealtimeDecision(null), []);
 
   useEffect(() => {
     fetch("/api/prediction/node-details", { cache: "no-store" })
@@ -136,6 +189,8 @@ function PredictionTree({
           pathNodeIds={pathNodeIds}
           onNodeClick={handleNodeClick}
           onAddPredictionNode={handleAddPredictionNode}
+          realtimeDecision={realtimeDecision}
+          onRealtimeDecisionConsumed={handleRealtimeDecisionConsumed}
         />
       </main>
       <RightSidebar pathDecisions={pathDecisions} departments={departments} nodeDetailsMap={nodeDetailsMap} />

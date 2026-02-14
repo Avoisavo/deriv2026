@@ -28,6 +28,8 @@ export interface PlanModeOverlayProps {
   onNo: () => void;
   /** Called when user closes overlay / goes back. */
   onClose: () => void;
+  /** If set, after typing is done and modal is shown, auto-click Proceed after this many ms (e.g. 1000). */
+  autoProceedAfterMs?: number;
 }
 
 const TYPING_SPEED = 12;
@@ -83,6 +85,7 @@ export function PlanModeOverlay({
   onYes,
   onNo,
   onClose,
+  autoProceedAfterMs,
 }: PlanModeOverlayProps) {
   const lastPillLabel = predictionLabel ?? "Prediction";
   const [typingSection, setTypingSection] = useState<TypingSection>("consequences");
@@ -90,6 +93,7 @@ export function PlanModeOverlay({
   const [cursorVisible, setCursorVisible] = useState(true);
   const [showYesNoModal, setShowYesNoModal] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const autoProceedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentFullText =
     typingSection === "consequences"
@@ -145,14 +149,38 @@ export function PlanModeOverlay({
   }, [prompt, onPromptSubmit]);
 
   const handleYes = useCallback(() => {
+    if (autoProceedTimerRef.current) {
+      clearTimeout(autoProceedTimerRef.current);
+      autoProceedTimerRef.current = null;
+    }
     setShowYesNoModal(false);
     onYes();
   }, [onYes]);
 
   const handleNo = useCallback(() => {
+    if (autoProceedTimerRef.current) {
+      clearTimeout(autoProceedTimerRef.current);
+      autoProceedTimerRef.current = null;
+    }
     setShowYesNoModal(false);
     onNo();
   }, [onNo]);
+
+  // When modal is shown and autoProceedAfterMs is set, schedule auto Proceed.
+  useEffect(() => {
+    if (!showYesNoModal || typingSection !== "done" || autoProceedAfterMs == null || autoProceedAfterMs <= 0) return;
+    autoProceedTimerRef.current = setTimeout(() => {
+      autoProceedTimerRef.current = null;
+      setShowYesNoModal(false);
+      onYes();
+    }, autoProceedAfterMs);
+    return () => {
+      if (autoProceedTimerRef.current) {
+        clearTimeout(autoProceedTimerRef.current);
+        autoProceedTimerRef.current = null;
+      }
+    };
+  }, [showYesNoModal, typingSection, autoProceedAfterMs, onYes]);
 
   return (
     <div className="absolute inset-0 z-10 flex flex-col bg-slate-900/98 backdrop-blur-sm">
