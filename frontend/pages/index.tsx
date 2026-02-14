@@ -7,6 +7,8 @@ import { useDecisionTreeState } from "@/hooks/useDecisionTreeState";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { RightSidebar } from "@/components/RightSidebar";
 import { DecisionTreeGraph } from "@/components/DecisionTreeGraph";
+import { SimulationModal } from "@/components/SimulationModal";
+import { useState } from "react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,6 +39,8 @@ export default function Home() {
     nodes: initialData.nodes,
     links: initialData.links,
   });
+
+  const [isSimulationModalOpen, setIsSimulationModalOpen] = useState(false);
 
   const decisionsByDept = useMemo(() => {
     const m = new Map<string, typeof initialData.decisions>();
@@ -71,6 +75,7 @@ export default function Home() {
         onRemoveDepartment={handleRemoveDepartment}
         onAddDepartment={handleAddDepartment}
         onSelectDecision={handleNodeClick}
+        onSimulationClick={() => setIsSimulationModalOpen(true)}
       />
       <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-slate-900 h-full">
         <DecisionTreeGraph
@@ -80,11 +85,14 @@ export default function Home() {
           highlightedPathNodeIds={highlightedPathNodeIds}
           selectedNodeId={selectedNodeId}
           pathNodeIds={pathNodeIds}
-          mitigationPlan={selectedDecision?.mitigationPlan ?? ""}
           onNodeClick={handleNodeClick}
         />
       </main>
       <RightSidebar pathDecisions={pathDecisions} />
+      <SimulationModal
+        isOpen={isSimulationModalOpen}
+        onClose={() => setIsSimulationModalOpen(false)}
+      />
     </div>
   );
 }
