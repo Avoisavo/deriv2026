@@ -196,33 +196,41 @@ export function getMockDecisionTreeData(): DecisionTreeData {
 }
 
 /**
- * Returns a path starting from the given node (for highlight).
- * Uses a deterministic walk along links (max length 8) so behavior is consistent.
+ * Returns the path from the department root to the given node (root → … → nodeId).
+ * Only nodes on this chain are included; only this path lights up when a node is clicked.
+ * Uses same-dept links only; parent = link source, child = link target.
  */
-export function getRandomPathFromNode(
+export function getPathFromRootToNode(
   nodeId: string,
   nodes: GraphNode[],
   links: GraphLink[]
 ): string[] {
-  const path: string[] = [nodeId];
-  const nodeIdSet = new Set(nodes.map((n) => n.id));
-  const outLinks = new Map<string, string[]>();
-  links.forEach((l) => {
+  const node = nodes.find((n) => n.id === nodeId);
+  if (!node) return [nodeId];
+  const deptId = node.payload.departmentId;
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  const sameDeptLinks = links.filter((l) => {
+    const srcId = typeof l.source === "string" ? l.source : (l.source as { id: string }).id;
+    const tgtId = typeof l.target === "string" ? l.target : (l.target as { id: string }).id;
+    const src = nodeById.get(srcId);
+    const tgt = nodeById.get(tgtId);
+    return src && tgt && src.payload.departmentId === deptId && tgt.payload.departmentId === deptId;
+  });
+  const parent = new Map<string, string>();
+  sameDeptLinks.forEach((l) => {
     const src = typeof l.source === "string" ? l.source : (l.source as { id: string }).id;
     const tgt = typeof l.target === "string" ? l.target : (l.target as { id: string }).id;
-    if (!outLinks.has(src)) outLinks.set(src, []);
-    outLinks.get(src)!.push(tgt);
+    parent.set(tgt, src);
   });
-
-  let current = nodeId;
-  const maxSteps = 8;
-  for (let i = 0; i < maxSteps; i++) {
-    const targets = outLinks.get(current);
-    if (!targets?.length) break;
-    const next = targets[i % targets.length];
-    if (!nodeIdSet.has(next)) break;
-    path.push(next);
-    current = next;
+  const back: string[] = [];
+  const seen = new Set<string>();
+  let current: string | undefined = nodeId;
+  const maxPathLen = 32;
+  while (current && back.length < maxPathLen && !seen.has(current)) {
+    seen.add(current);
+    back.push(current);
+    current = parent.get(current);
   }
-  return path;
+  back.reverse();
+  return back;
 }
