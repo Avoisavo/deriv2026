@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import type { Department, GraphNode, GraphLink } from "@/types/decision-tree";
-import { getRandomPathFromNode } from "@/lib/mockDecisionTree";
+import { getPathFromRootToNode } from "@/lib/mockDecisionTree";
 
 export interface UseDecisionTreeStateOptions {
   initialDepartments: Department[];
@@ -72,7 +72,7 @@ export function useDecisionTreeState({
   const handleNodeClick = useCallback(
     (nodeId: string) => {
       setSelectedNodeId(nodeId);
-      const path = getRandomPathFromNode(nodeId, nodes, links);
+      const path = getPathFromRootToNode(nodeId, nodes, links);
       setHighlightedPathNodeIds(new Set(path));
       setPathNodeIds(path);
     },

@@ -11,6 +11,14 @@ export interface PlanModePanelProps {
   isExpanded: boolean;
   /** Toggle expand/collapse. */
   onToggleExpand: () => void;
+  /** Input value shown in the collapsed bar (plan prompt). */
+  planPrompt?: string;
+  /** Called when the user changes the plan prompt in the collapsed bar. */
+  onPlanPromptChange?: (value: string) => void;
+  /** Called when user submits the prompt (e.g. Predict button). */
+  onPromptSubmit?: (prompt: string) => void;
+  /** When false, expand is disabled (e.g. until prediction flow has run). */
+  canExpand?: boolean;
 }
 
 type DemoStep = "input" | "thinking" | "typing_plan" | "awaiting_channel" | "analyzing_channel" | "completing_plan" | "awaiting_confirmation";
@@ -100,6 +108,10 @@ export function PlanModePanel({
   pillVisibleCount,
   isExpanded,
   onToggleExpand,
+  planPrompt = "",
+  onPlanPromptChange,
+  onPromptSubmit,
+  canExpand = true,
 }: PlanModePanelProps) {
   const [demoStep, setDemoStep] = useState<DemoStep>("input");
   const [channelChoice, setChannelChoice] = useState<ChannelChoice>(null);
@@ -227,40 +239,119 @@ export function PlanModePanel({
         isExpanded ? "h-[60%]" : "h-12"
       }`}
     >
-      {/* Collapsed bar */}
-      <button
-        type="button"
-        onClick={onToggleExpand}
-        className="flex flex-none items-center justify-between gap-2 px-4 py-3 text-left hover:bg-slate-800/80 transition-colors duration-200"
-        aria-expanded={isExpanded}
-      >
-        <span className="text-sm font-medium text-slate-300">
-          Plan mode {pathLabels.length > 0 && `— ${pathLabels.length} node${pathLabels.length === 1 ? "" : "s"}`}
-        </span>
-        <span
-          className={`shrink-0 text-slate-400 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
-          aria-hidden
-        >
-          ▼
-        </span>
-      </button>
+      {/* Collapsed bar: input field + Predict button + expand toggle (when allowed) */}
+      <div className="flex flex-none items-center gap-2 px-4 py-2 min-h-12">
+        <input
+          type="text"
+          value={planPrompt}
+          onChange={(e) => onPlanPromptChange?.(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && onPromptSubmit?.(planPrompt)}
+          placeholder="e.g. What if our company stop producing wattle bottle?"
+          className="min-w-0 flex-1 rounded-lg border border-slate-600 bg-slate-800/50 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+        />
+        {onPromptSubmit && (
+          <button
+            type="button"
+            onClick={() => onPromptSubmit(planPrompt)}
+            disabled={!planPrompt.trim()}
+            className="shrink-0 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Predict
+          </button>
+        )}
+        {canExpand && (
+          <button
+            type="button"
+            onClick={onToggleExpand}
+            className="flex shrink-0 items-center justify-center rounded-lg p-2 text-slate-400 hover:bg-slate-800/80 hover:text-slate-200 transition-colors duration-200"
+            aria-expanded={isExpanded}
+            aria-label={isExpanded ? "Collapse panel" : "Expand panel"}
+          >
+            <span className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>▼</span>
+          </button>
+        )}
+      </div>
 
       {isExpanded && (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden relative">
-          {/* Upper: path nodes */}
-          <div className="flex flex-wrap items-center justify-center gap-3 border-b border-slate-700/50 px-4 py-4 bg-slate-900/50">
-            {pathLabels.map((label, i) => (
-              <span
-                key={i}
-                className="rounded-full bg-amber-500/25 px-4 py-2 text-sm font-medium text-amber-200 shadow-lg shadow-amber-500/20 ring-1 ring-amber-500/40 transition-all duration-300 animate-in fade-in slide-in-from-bottom-2"
-                style={{
-                  opacity: i < pillVisibleCount ? 1 : 0,
-                  transform: i < pillVisibleCount ? "translateY(0) scale(1)" : "translateY(-8px) scale(0.95)",
-                }}
-              >
-                {label}
-              </span>
-            ))}
+          {/* Upper: path as linkage + nodes (flowing links, circles kept round) */}
+          <div className="flex-none border-b border-slate-700/50 px-4 py-4 bg-slate-900/50">
+            <style>{`
+              @keyframes plan-link-flow-div {
+                0% { background-position: 0% 50%; }
+                100% { background-position: 200% 50%; }
+              }
+              .plan-link-flow-div {
+                background: linear-gradient(
+                  90deg,
+                  rgba(251, 191, 36, 0.8) 0%,
+                  rgba(251, 191, 36, 0.95) 25%,
+                  rgba(251, 191, 36, 0.8) 50%,
+                  rgba(251, 191, 36, 0.95) 75%,
+                  rgba(251, 191, 36, 0.8) 100%
+                ) !important;
+                background-size: 200% 100% !important;
+                animation: plan-link-flow-div 1.2s linear infinite;
+              }
+            `}</style>
+            <div className="mx-auto max-w-4xl">
+              {pathLabels.length > 0 && (() => {
+                const n = pathLabels.length;
+                return (
+                  <div className="grid w-full" style={{ gridTemplateColumns: `repeat(${n}, 1fr)` }}>
+                    {/* Row 1: one circle per column + link segments so nodes match column spacing */}
+                    {pathLabels.map((_, i) => {
+                      const visible = i < pillVisibleCount;
+                      const linkRightVisible = i < n - 1 && i + 1 <= pillVisibleCount;
+                      const linkLeftVisible = i > 0 && i <= pillVisibleCount;
+                      return (
+                        <div key={i} className="relative flex items-center justify-center min-h-10">
+                          {i > 0 && (
+                            <div
+                              className={`absolute left-0 right-1/2 top-1/2 h-0.5 -translate-y-1/2 rounded-full transition-all duration-300 ${linkLeftVisible ? "plan-link-flow-div" : ""}`}
+                              style={{
+                                background: linkLeftVisible ? undefined : "rgba(71, 85, 105, 0.4)",
+                              }}
+                            />
+                          )}
+                          {i < n - 1 && (
+                            <div
+                              className={`absolute left-1/2 right-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full transition-all duration-300 ${linkRightVisible ? "plan-link-flow-div" : ""}`}
+                              style={{
+                                background: linkRightVisible ? undefined : "rgba(71, 85, 105, 0.4)",
+                              }}
+                            />
+                          )}
+                          <div
+                            className="relative z-10 h-3 w-3 shrink-0 rounded-full border-2 transition-all duration-300"
+                            style={{
+                              backgroundColor: "rgb(251, 191, 36)",
+                              borderColor: "rgba(251, 191, 36, 0.9)",
+                              opacity: visible ? 1 : 0.25,
+                            }}
+                          />
+                        </div>
+                      );
+                    })}
+                    {/* Row 2: one label per column, directly under the node */}
+                    {pathLabels.map((label, i) => (
+                      <div
+                        key={i}
+                        className="flex flex-col items-center justify-start pt-0.5 transition-all duration-300"
+                        style={{
+                          opacity: i < pillVisibleCount ? 1 : 0.35,
+                          transform: i < pillVisibleCount ? "translateY(0)" : "translateY(4px)",
+                        }}
+                      >
+                        <span className="block text-center text-xs font-medium text-slate-400 truncate w-full px-0.5" title={label}>
+                          {label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
           </div>
 
           {/* Main content area with backdrop filter when modal is open */}
