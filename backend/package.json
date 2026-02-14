@@ -1,0 +1,14 @@
+{
+  "name": "truman-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Truman hackathon MVP backend",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "events:extract": "node src/cli/generate-events.js",
+    "events:push": "node src/cli/push-events.js",
+    "pipeline:run": "node src/cli/run-pipeline.js"
+  }
+}
