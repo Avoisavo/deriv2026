@@ -1,0 +1,9 @@
+{
+  "/": "pages/index.js",
+  "/_app": "pages/_app.js",
+  "/_document": "pages/_document.js",
+  "/dashboard": "pages/dashboard.js",
+  "/dashboard2": "pages/dashboard2.js",
+  "/simulation": "pages/simulation.js",
+  "/simulation2": "pages/simulation2.js"
+}
