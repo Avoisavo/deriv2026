@@ -1,0 +1,393 @@
+{
+  "generated_at": "2026-02-14T14:06:12.109Z",
+  "generator": {
+    "provider": "groq",
+    "model": "llama-3.3-70b-versatile",
+    "pipeline": "post-ai-crawl-event-extractor"
+  },
+  "source_runs": [
+    {
+      "source_key": "finance_procurement",
+      "domain": "finance",
+      "file_name": "finance_procurement_official_report_~2000w.docx",
+      "generated_event_count": 8
+    },
+    {
+      "source_key": "support_customer_success",
+      "domain": "support",
+      "file_name": "support_dataset_customer_success_1000rows.csv",
+      "generated_event_count": 6
+    },
+    {
+      "source_key": "ops_it",
+      "domain": "operations",
+      "file_name": "ops_it_alert_stream_100.json",
+      "generated_event_count": 6
+    }
+  ],
+  "event_count": 20,
+  "events": [
+    {
+      "event_id": "FIN-2026-02-07-01-001",
+      "source_key": "finance_procurement",
+      "domain": "finance",
+      "title": "APAC Cost Control Program Implementation",
+      "summary": "The APAC cost control program aims to reduce operating expenses by 12% by the end of the quarter without compromising service integrity or security posture. The program includes hiring freezes, reduced contractor hours, and procurement constraints.",
+      "confidence": 0.9,
+      "importance": "high",
+      "tags": [
+        "cost_control",
+        "apac",
+        "finance"
+      ],
+      "evidence": [
+        "12% reduction in APAC operating expense by quarter end",
+        "hiring freeze for APAC Support and IT Ops roles",
+        "30% reduction in on-call contractor hours"
+      ]
+    },
+    {
+      "event_id": "FIN-2026-02-07-01-002",
+      "source_key": "finance_procurement",
+      "domain": "finance",
+      "title": "Increased Cloud and Infrastructure Costs",
+      "summary": "APAC cloud spend has risen due to peak-hour headroom, retry traffic, and extended on-call coverage. Several planned reliability upgrades are scheduled for this quarter, which may reduce long-term risk but increase near-term costs.",
+      "confidence": 0.8,
+      "importance": "medium",
+      "tags": [
+        "cloud_cost",
+        "infrastructure",
+        "apac"
+      ],
+      "evidence": [
+        "peak-hour headroom",
+        "retry traffic",
+        "extended on-call coverage"
+      ]
+    },
+    {
+      "event_id": "FIN-2026-02-07-01-003",
+      "source_key": "finance_procurement",
+      "domain": "finance",
+      "title": "Customer Support Load and Productivity",
+      "summary": "Support-related costs are above plan due to ticket volume growth and longer handling times for complex categories. Average first response time has shown early signs of deterioration during peak hours.",
+      "confidence": 0.7,
+      "importance": "medium",
+      "tags": [
+        "customer_support",
+        "productivity",
+        "apac"
+      ],
+      "evidence": [
+        "ticket volume growth",
+        "longer handling times",
+        "average first response time deterioration"
+      ]
+    },
+    {
+      "event_id": "FIN-2026-02-07-01-004",
+      "source_key": "finance_procurement",
+      "domain": "finance",
+      "title": "Revenue and Acquisition Efficiency",
+      "summary": "Revenue has remained broadly flat week-over-week, while customer acquisition cost (CAC) in APAC has increased relative to the previous month, indicating reduced marketing efficiency.",
+      "confidence": 0.6,
+      "importance": "low",
+      "tags": [
+        "revenue",
+        "acquisition_efficiency",
+        "apac"
+      ],
+      "evidence": [
+        "flat revenue",
+        "increased CAC"
+      ]
+    },
+    {
+      "event_id": "FIN-2026-02-07-01-005",
+      "source_key": "finance_procurement",
+      "domain": "finance",
+      "title": "Financial Objective and Measurement",
+      "summary": "The financial objective is to reduce APAC operating expense by 12% by quarter end without increasing customer-impact incidents or security risk. Performance will be tracked across four categories: spend, service health, customer experience, and risk posture.",
+      "confidence": 0.9,
+      "importance": "high",
+      "tags": [
+        "financial_objective",
+        "measurement",
+        "apac"
+      ],
+      "evidence": [
+        "12% reduction in APAC operating expense",
+        "four categories of performance metrics"
+      ]
+    },
+    {
+      "event_id": "FIN-2026-02-07-01-006",
+      "source_key": "finance_procurement",
+      "domain": "finance",
+      "title": "Approved Cost-Control Actions",
+      "summary": "Approved cost-control actions include hiring and staffing controls, procurement constraints, and project deferrals. These actions are effective immediately and will be reviewed weekly.",
+      "confidence": 0.8,
+      "importance": "medium",
+      "tags": [
+        "cost_control",
+        "actions",
+        "apac"
+      ],
+      "evidence": [
+        "hiring freeze",
+        "procurement constraints",
+        "project deferrals"
+      ]
+    },
+    {
+      "event_id": "FIN-2026-02-07-01-007",
+      "source_key": "finance_procurement",
+      "domain": "finance",
+      "title": "Guardrails and Decision Triggers",
+      "summary": "Guardrails are in place to ensure that cost reduction does not compromise service integrity, security posture, or customer communication. Decision triggers will automatically prioritize service continuity over cost reduction if certain conditions are met.",
+      "confidence": 0.7,
+      "importance": "medium",
+      "tags": [
+        "guardrails",
+        "decision_triggers",
+        "apac"
+      ],
+      "evidence": [
+        "service integrity",
+        "security posture",
+        "customer communication"
+      ]
+    },
+    {
+      "event_id": "FIN-2026-02-07-01-008",
+      "source_key": "finance_procurement",
+      "domain": "finance",
+      "title": "Implementation Timeline",
+      "summary": "The implementation timeline includes immediate actions, stabilization, and quarterly review. The program will be reviewed weekly, and decisions will be made based on performance metrics and leading indicators.",
+      "confidence": 0.6,
+      "importance": "low",
+      "tags": [
+        "implementation",
+        "timeline",
+        "apac"
+      ],
+      "evidence": [
+        "immediate actions",
+        "stabilization",
+        "quarterly review"
+      ]
+    },
+    {
+      "event_id": "support-001",
+      "source_key": "support_customer_success",
+      "domain": "support",
+      "title": "High Volume of App Slow/Laggy Tickets",
+      "summary": "The APAC region experienced a high volume of 'App slow/laggy' tickets, with 5587 tickets and an average first response time of 74.85 minutes. The average sentiment score for this topic was 0.567.",
+      "confidence": 0.9,
+      "importance": "medium",
+      "tags": [
+        "apac",
+        "app slow"
+      ],
+      "evidence": [
+        "5587 'App slow/laggy' tickets in APAC region",
+        "Average first response time of 74.85 minutes for 'App slow/laggy' tickets",
+        "Average sentiment score of 0.567 for 'App slow/laggy' tickets"
+      ]
+    },
+    {
+      "event_id": "support-002",
+      "source_key": "support_customer_success",
+      "domain": "support",
+      "title": "Long Average First Response Time for Trade/Order Stuck Tickets",
+      "summary": "The 'Trade/order stuck' topic had an average first response time of 75.93 minutes, with 5109 tickets and an average sentiment score of 0.525. This topic was one of the slowest in terms of first response time.",
+      "confidence": 0.8,
+      "importance": "medium",
+      "tags": [
+        "trade order stuck",
+        "response time"
+      ],
+      "evidence": [
+        "5109 'Trade/order stuck' tickets",
+        "Average first response time of 75.93 minutes for 'Trade/order stuck' tickets",
+        "Average sentiment score of 0.525 for 'Trade/order stuck' tickets"
+      ]
+    },
+    {
+      "event_id": "support-003",
+      "source_key": "support_customer_success",
+      "domain": "support",
+      "title": "High Ticket Volume During Peak Hours",
+      "summary": "The top ticket hour occurred on 2026-01-06T23:00:00 in the APAC region, with 54 tickets and an average first response time of 96.9 minutes. The top topic during this hour was 'App slow/laggy'.",
+      "confidence": 0.7,
+      "importance": "low",
+      "tags": [
+        "peak hours",
+        "apac"
+      ],
+      "evidence": [
+        "54 tickets on 2026-01-06T23:00:00 in APAC region",
+        "Average first response time of 96.9 minutes during peak hour",
+        "Top topic 'App slow/laggy' during peak hour"
+      ]
+    },
+    {
+      "event_id": "support-004",
+      "source_key": "support_customer_success",
+      "domain": "support",
+      "title": "Low Sentiment Score for Refund/Dispute Tickets",
+      "summary": "The 'Refund/dispute' topic had an average sentiment score of 0.468, with 2597 tickets and an average first response time of 75.12 minutes. This topic had one of the lowest sentiment scores.",
+      "confidence": 0.6,
+      "importance": "medium",
+      "tags": [
+        "refund dispute",
+        "sentiment score"
+      ],
+      "evidence": [
+        "2597 'Refund/dispute' tickets",
+        "Average sentiment score of 0.468 for 'Refund/dispute' tickets",
+        "Average first response time of 75.12 minutes for 'Refund/dispute' tickets"
+      ]
+    },
+    {
+      "event_id": "support-005",
+      "source_key": "support_customer_success",
+      "domain": "support",
+      "title": "Regional Ticket Distribution",
+      "summary": "The APAC region accounted for 17587 tickets, followed by EMEA with 5153 tickets and LATAM with 2080 tickets. The APAC region had the highest ticket volume.",
+      "confidence": 0.9,
+      "importance": "low",
+      "tags": [
+        "regional tickets",
+        "apac"
+      ],
+      "evidence": [
+        "17587 tickets in APAC region",
+        "5153 tickets in EMEA region",
+        "2080 tickets in LATAM region"
+      ]
+    },
+    {
+      "event_id": "support-006",
+      "source_key": "support_customer_success",
+      "domain": "support",
+      "title": "Average First Response Time",
+      "summary": "The overall average first response time was 74.74 minutes, with a total of 24820 tickets. The average sentiment score was 0.573.",
+      "confidence": 0.8,
+      "importance": "medium",
+      "tags": [
+        "average response time",
+        "sentiment score"
+      ],
+      "evidence": [
+        "Average first response time of 74.74 minutes",
+        "Total of 24820 tickets",
+        "Average sentiment score of 0.573"
+      ]
+    },
+    {
+      "event_id": "evt_001",
+      "source_key": "ops_it",
+      "domain": "operations",
+      "title": "High latency in trade-confirm service",
+      "summary": "The trade-confirm service experienced high latency, with a p95 latency of 1699ms, exceeding the warning threshold of 1400ms.",
+      "confidence": 0.9,
+      "importance": "medium",
+      "tags": [
+        "latency",
+        "trade-confirm"
+      ],
+      "evidence": [
+        "p95_latency_ms: 1699",
+        "warn_threshold: 1400"
+      ]
+    },
+    {
+      "event_id": "evt_002",
+      "source_key": "ops_it",
+      "domain": "operations",
+      "title": "High error rate in risk-engine service",
+      "summary": "The risk-engine service experienced a high error rate, with an error rate of 3.05%, exceeding the warning threshold of 2.5%.",
+      "confidence": 0.8,
+      "importance": "medium",
+      "tags": [
+        "error_rate",
+        "risk-engine"
+      ],
+      "evidence": [
+        "error_rate_pct: 3.05",
+        "warn_threshold: 2.5"
+      ]
+    },
+    {
+      "event_id": "evt_003",
+      "source_key": "ops_it",
+      "domain": "operations",
+      "title": "High CPU usage in dns-resolver service",
+      "summary": "The dns-resolver service experienced high CPU usage, with a CPU usage of 85.1%, exceeding the warning threshold of 85%.",
+      "confidence": 0.7,
+      "importance": "low",
+      "tags": [
+        "cpu_usage",
+        "dns-resolver"
+      ],
+      "evidence": [
+        "cpu_pct: 85.1",
+        "warn_threshold: 85"
+      ]
+    },
+    {
+      "event_id": "evt_004",
+      "source_key": "ops_it",
+      "domain": "operations",
+      "title": "Critical latency in trade-confirm service",
+      "summary": "The trade-confirm service experienced critical latency, with a p95 latency of 1418ms, exceeding the critical threshold of 1400ms, and a CPU usage of 89.1%, exceeding the critical threshold of 85%.",
+      "confidence": 0.95,
+      "importance": "critical",
+      "tags": [
+        "latency",
+        "trade-confirm",
+        "critical"
+      ],
+      "evidence": [
+        "p95_latency_ms: 1418",
+        "cpu_pct: 89.1"
+      ]
+    },
+    {
+      "event_id": "evt_005",
+      "source_key": "ops_it",
+      "domain": "operations",
+      "title": "High latency in api-gateway service",
+      "summary": "The api-gateway service experienced high latency, with a p95 latency of 2596ms, exceeding the warning threshold of 1400ms.",
+      "confidence": 0.85,
+      "importance": "medium",
+      "tags": [
+        "latency",
+        "api-gateway"
+      ],
+      "evidence": [
+        "p95_latency_ms: 2596",
+        "warn_threshold: 1400"
+      ]
+    },
+    {
+      "event_id": "evt_006",
+      "source_key": "ops_it",
+      "domain": "operations",
+      "title": "Critical error rate in trade-confirm service",
+      "summary": "The trade-confirm service experienced a critical error rate, with an error rate of 2.9%, exceeding the critical threshold of 2.5%.",
+      "confidence": 0.9,
+      "importance": "critical",
+      "tags": [
+        "error_rate",
+        "trade-confirm",
+        "critical"
+      ],
+      "evidence": [
+        "error_rate_pct: 2.9",
+        "warn_threshold: 2.5"
+      ]
+    }
+  ]
+}
