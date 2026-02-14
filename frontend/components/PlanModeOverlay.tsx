@@ -312,6 +312,63 @@ export function PlanModeOverlay({
                   </pre>
                 </section>
               )}
+
+              {(typingSection === "done") && (
+                <section className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-5">
+                  <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-amber-400">
+                    Suggested Actions
+                  </h3>
+                  <div className="space-y-3">
+                    {/* Docs Action */}
+                    <div className="flex items-start gap-4 rounded-lg border border-slate-700/50 bg-slate-900/50 p-3 hover:border-slate-600 transition-colors cursor-pointer group">
+                      <div className="h-6 w-6 shrink-0 overflow-hidden rounded-lg bg-white p-0.5">
+                        <img src="/docs.png" alt="Google Docs" className="h-full w-full object-contain" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-slate-200 group-hover:text-white">Draft Transition Plan</h4>
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded">Doc</span>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+                          Phase-out timeline, stakeholder impact analysis, and internal communication roadmap.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Calendar Action */}
+                    <div className="flex items-start gap-4 rounded-lg border border-slate-700/50 bg-slate-900/50 p-3 hover:border-slate-600 transition-colors cursor-pointer group">
+                      <div className="h-6 w-6 shrink-0 overflow-hidden rounded-lg bg-white p-0.5">
+                        <img src="/calendar.png" alt="Google Calendar" className="h-full w-full object-contain" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-slate-200 group-hover:text-white">Schedule Stakeholder Meeting</h4>
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded">Event</span>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+                          Agenda: Review reallocation plan, identify risks, and sign off on timeline.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Gmail Action */}
+                    <div className="flex items-start gap-4 rounded-lg border border-slate-700/50 bg-slate-900/50 p-3 hover:border-slate-600 transition-colors cursor-pointer group">
+                      <div className="h-6 w-6 shrink-0 overflow-hidden rounded-lg bg-white p-0.5">
+                        <img src="/gmail.png" alt="Gmail" className="h-full w-full object-contain" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-slate-200 group-hover:text-white">Draft Team Announcement</h4>
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded">Email</span>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+                          Subject: Strategic Updates. Body: Announcing focus shift to high-margin products and next steps for the team.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              )}
             </div>
           </div>
 
