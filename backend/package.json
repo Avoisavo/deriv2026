@@ -4,8 +4,12 @@
   "private": true,
   "type": "module",
   "description": "Truman hackathon MVP backend",
+  "dependencies": {
+    "googleapis": "^150.0.1",
+    "xlsx": "^0.18.5"
+  },
   "scripts": {
-    "dev": "node --watch src/server.js",
+    "dev": "node --watch --watch-path=src src/server.js",
     "start": "node src/server.js",
     "events:extract": "node src/cli/generate-events.js",
     "events:push": "node src/cli/push-events.js",

@@ -1,0 +1,9 @@
+{
+  "name": "truman-monorepo",
+  "private": true,
+  "scripts": {
+    "dev": "sh -c 'npm --prefix backend run dev & npm --prefix frontend run dev'",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev"
+  }
+}

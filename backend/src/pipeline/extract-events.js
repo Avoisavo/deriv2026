@@ -29,6 +29,22 @@ export const DEFAULT_INPUT_FILES = [
 
 export const DEFAULT_OUTPUT_FILE = path.resolve(DATA_DIR, "truman_events_from_ai_crawl.json");
 
+function normalizeKey(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function detectType(filePath, explicitType) {
+  if (explicitType) return explicitType;
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === ".csv") return "csv";
+  if (ext === ".xlsx") return "xlsx";
+  if (ext === ".json") return "json";
+  if (ext === ".docx") return "docx";
+  return "unknown";
+}
+
 function csvToRows(csvText) {
   const lines = csvText.split(/\r?\n/).filter(Boolean);
   if (lines.length === 0) return [];
@@ -43,6 +59,29 @@ function csvToRows(csvText) {
     rows.push(row);
   }
   return rows;
+}
+
+async function xlsxToRows(filePath) {
+  let xlsx;
+  try {
+    xlsx = await import("xlsx");
+  } catch {
+    throw new Error(
+      "XLSX input requires dependency 'xlsx'. Run: cd backend && npm install xlsx"
+    );
+  }
+
+  const fileBuffer = await fs.readFile(filePath);
+  const workbook = xlsx.read(fileBuffer, { type: "buffer" });
+  const firstSheetName = workbook.SheetNames[0];
+  if (!firstSheetName) return [];
+  const sheet = workbook.Sheets[firstSheetName];
+  return xlsx.utils.sheet_to_json(sheet, { defval: "" });
+}
+
+function parseNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 function sumBy(rows, keyField, valueField) {
@@ -74,49 +113,331 @@ function avgBy(rows, keyField, valueField) {
     .sort((a, b) => b.avg - a.avg);
 }
 
-function summarizeSupportCsv(csvText) {
-  const rows = csvToRows(csvText);
-  const totalTickets = rows.reduce((acc, r) => acc + Number(r.tickets || 0), 0);
-  const avgFirstResponse =
-    rows.reduce((acc, r) => acc + Number(r.avg_first_response_min || 0), 0) /
-    Math.max(1, rows.length);
-  const avgSentiment =
-    rows.reduce((acc, r) => acc + Number(r.sentiment_score || 0), 0) / Math.max(1, rows.length);
+function mean(values) {
+  if (!values.length) return 0;
+  return values.reduce((acc, x) => acc + x, 0) / values.length;
+}
 
-  const byTopic = sumBy(rows, "top_topic", "tickets").slice(0, 8);
-  const byRegion = sumBy(rows, "region", "tickets");
-  const slowByTopic = avgBy(rows, "top_topic", "avg_first_response_min").slice(0, 5);
-  const worstSentimentByTopic = avgBy(rows, "top_topic", "sentiment_score")
-    .reverse()
-    .slice(0, 5);
-  const topTicketHours = [...rows]
+function stddev(values) {
+  if (values.length < 2) return 0;
+  const m = mean(values);
+  const variance = values.reduce((acc, x) => acc + (x - m) ** 2, 0) / values.length;
+  return Math.sqrt(variance);
+}
+
+function percentile(values, p) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor((sorted.length - 1) * p)));
+  return sorted[idx];
+}
+
+function pickColumn(rows, aliases) {
+  if (!rows.length) return null;
+  const keys = Object.keys(rows[0]);
+  const normalized = keys.map((k) => ({ raw: k, norm: normalizeKey(k) }));
+
+  for (const alias of aliases) {
+    const aliasNorm = normalizeKey(alias);
+    const exact = normalized.find((k) => k.norm === aliasNorm);
+    if (exact) return exact.raw;
+  }
+
+  for (const alias of aliases) {
+    const aliasNorm = normalizeKey(alias);
+    const fuzzy = normalized.find((k) => k.norm.includes(aliasNorm) || aliasNorm.includes(k.norm));
+    if (fuzzy) return fuzzy.raw;
+  }
+
+  return null;
+}
+
+function buildDatasetFactsSheet(rows, sourceKey) {
+  const lines = [];
+  if (!rows.length) {
+    return {
+      schema: { columns: [], mapped: {} },
+      lines: ["No rows found in dataset."],
+    };
+  }
+
+  const timestampCol = pickColumn(rows, [
+    "timestamp",
+    "time",
+    "datetime",
+    "event_time",
+    "created_at",
+    "date",
+  ]);
+  const topicCol = pickColumn(rows, ["top_topic", "topic", "issue", "category", "issue_type"]);
+  const volumeCol = pickColumn(rows, ["tickets", "count", "volume", "events", "requests"]);
+  const sentimentCol = pickColumn(rows, ["sentiment_score", "sentiment", "csat", "nps"]);
+  const slaCol = pickColumn(rows, [
+    "avg_first_response_min",
+    "first_response_min",
+    "response_time_min",
+    "sla_minutes",
+    "resolution_min",
+    "latency_ms",
+  ]);
+  const regionCol = pickColumn(rows, ["region", "market", "geo", "country"]);
+
+  const normalizedRows = rows.map((row, idx) => ({
+    idx,
+    timestamp: timestampCol ? String(row[timestampCol] ?? "") : "",
+    topic: topicCol ? String(row[topicCol] ?? "unknown") : "unknown",
+    region: regionCol ? String(row[regionCol] ?? "unknown") : "unknown",
+    volume: volumeCol ? parseNumber(row[volumeCol]) : null,
+    sentiment: sentimentCol ? parseNumber(row[sentimentCol]) : null,
+    sla: slaCol ? parseNumber(row[slaCol]) : null,
+  }));
+
+  const volumeRows = normalizedRows.filter((r) => r.volume !== null);
+  const sentimentRows = normalizedRows.filter((r) => r.sentiment !== null);
+  const slaRows = normalizedRows.filter((r) => r.sla !== null);
+
+  const volumeValues = volumeRows.map((r) => r.volume);
+  const volumeMean = mean(volumeValues);
+  const volumeStd = stddev(volumeValues);
+
+  const topSpikes = volumeRows
     .map((r) => ({
-      timestamp: r.timestamp,
-      region: r.region,
-      top_topic: r.top_topic,
-      tickets: Number(r.tickets || 0),
-      avg_first_response_min: Number(r.avg_first_response_min || 0),
-      sentiment_score: Number(r.sentiment_score || 0),
+      ...r,
+      z: volumeStd > 0 ? (r.volume - volumeMean) / volumeStd : 0,
     }))
-    .sort((a, b) => b.tickets - a.tickets)
-    .slice(0, 12);
+    .sort((a, b) => b.z - a.z || b.volume - a.volume)
+    .slice(0, 20);
+
+  const topicStats = new Map();
+  const midpoint = Math.floor(normalizedRows.length / 2);
+  normalizedRows.forEach((r, idx) => {
+    const topic = r.topic || "unknown";
+    const cur = topicStats.get(topic) ?? { totalVolume: 0, firstHalfVolume: 0, secondHalfVolume: 0 };
+    if (r.volume !== null) {
+      cur.totalVolume += r.volume;
+      if (idx <= midpoint) cur.firstHalfVolume += r.volume;
+      else cur.secondHalfVolume += r.volume;
+    }
+    topicStats.set(topic, cur);
+  });
+
+  const topTopicSurges = [...topicStats.entries()]
+    .map(([topic, stats]) => {
+      const base = Math.max(1, stats.firstHalfVolume);
+      const pct = ((stats.secondHalfVolume - stats.firstHalfVolume) / base) * 100;
+      return {
+        topic,
+        totalVolume: stats.totalVolume,
+        firstHalfVolume: stats.firstHalfVolume,
+        secondHalfVolume: stats.secondHalfVolume,
+        surgePct: Number(pct.toFixed(1)),
+      };
+    })
+    .sort((a, b) => b.surgePct - a.surgePct)
+    .slice(0, 15);
+
+  const worstSentimentWindows = sentimentRows
+    .sort((a, b) => a.sentiment - b.sentiment)
+    .slice(0, 20);
+
+  let slaThreshold = null;
+  if (slaRows.length) {
+    const values = slaRows.map((r) => r.sla);
+    const p90 = percentile(values, 0.9);
+    const slaNorm = normalizeKey(slaCol || "");
+    const staticThreshold = slaNorm.includes("latency") || slaNorm.includes("ms") ? 2000 : 60;
+    slaThreshold = Math.max(staticThreshold, p90 ?? staticThreshold);
+  }
+
+  const slaBreaches = slaRows
+    .filter((r) => (slaThreshold === null ? false : r.sla >= slaThreshold))
+    .sort((a, b) => b.sla - a.sla)
+    .slice(0, 25);
+
+  const regionBreakdown = regionCol
+    ? sumBy(
+        rows.map((r) => ({
+          [regionCol]: r[regionCol],
+          __volume: volumeCol ? r[volumeCol] : 1,
+        })),
+        regionCol,
+        "__volume"
+      ).slice(0, 10)
+    : [];
+
+  lines.push(`# Facts Sheet: ${sourceKey}`);
+  lines.push(`rows=${rows.length}`);
+  lines.push(`mapped_columns timestamp=${timestampCol || "n/a"} topic=${topicCol || "n/a"} volume=${volumeCol || "n/a"} sentiment=${sentimentCol || "n/a"} sla=${slaCol || "n/a"} region=${regionCol || "n/a"}`);
+  if (volumeValues.length) {
+    lines.push(`volume_baseline mean=${volumeMean.toFixed(3)} std=${volumeStd.toFixed(3)}`);
+  }
+
+  lines.push("## Top spikes");
+  for (const row of topSpikes) {
+    lines.push(
+      `spike ts=${row.timestamp || row.idx} topic=${row.topic} region=${row.region} volume=${row.volume} z=${row.z.toFixed(2)}`
+    );
+  }
+
+  lines.push("## Top topic surges");
+  for (const row of topTopicSurges) {
+    lines.push(
+      `surge topic=${row.topic} first_half=${row.firstHalfVolume} second_half=${row.secondHalfVolume} surge_pct=${row.surgePct} total=${row.totalVolume}`
+    );
+  }
+
+  lines.push("## Worst sentiment windows");
+  for (const row of worstSentimentWindows) {
+    lines.push(
+      `sentiment ts=${row.timestamp || row.idx} topic=${row.topic} region=${row.region} sentiment=${row.sentiment}`
+    );
+  }
+
+  lines.push("## SLA breaches");
+  lines.push(`sla_threshold=${slaThreshold ?? "n/a"}`);
+  for (const row of slaBreaches) {
+    lines.push(`sla_breach ts=${row.timestamp || row.idx} topic=${row.topic} region=${row.region} sla=${row.sla}`);
+  }
+
+  lines.push("## Region breakdown");
+  for (const row of regionBreakdown) {
+    lines.push(`region=${row.key} total_volume=${row.value}`);
+  }
+
+  if (lines.length < 50) {
+    lines.push("## Additional row highlights");
+    const highlights = [...volumeRows]
+      .sort((a, b) => b.volume - a.volume)
+      .slice(0, Math.min(80, volumeRows.length));
+    for (const row of highlights) {
+      lines.push(
+        `highlight ts=${row.timestamp || row.idx} topic=${row.topic} region=${row.region} volume=${row.volume} sentiment=${row.sentiment ?? "n/a"} sla=${row.sla ?? "n/a"}`
+      );
+      if (lines.length >= 120) break;
+    }
+  }
 
   return {
+    schema: {
+      columns: Object.keys(rows[0] ?? {}),
+      mapped: {
+        timestamp: timestampCol,
+        topic: topicCol,
+        volume: volumeCol,
+        sentiment: sentimentCol,
+        sla: slaCol,
+        region: regionCol,
+      },
+    },
+    lines: lines.slice(0, 200),
+  };
+}
+
+async function docxToText(filePath) {
+  const { stdout } = await execFileAsync("textutil", ["-convert", "txt", "-stdout", filePath], {
+    maxBuffer: 1024 * 1024 * 8,
+  });
+  return stdout;
+}
+
+function cleanJsonPayload(rawText) {
+  const trimmed = rawText.trim();
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) return trimmed;
+  const match = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (match?.[1]) return match[1].trim();
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start >= 0 && end > start) return trimmed.slice(start, end + 1);
+  return trimmed;
+}
+
+async function callGroqForEvents({ apiKey, model, sourceKey, domain, evidenceDigest, maxEvents }) {
+  const system = [
+    "You are Truman event extraction model.",
+    "Return strict JSON only. No markdown, no commentary.",
+    "Extract concrete discoveries from evidence.",
+    "One source can produce multiple events.",
+    "Each event must have these fields:",
+    "event_id, source_key, domain, title, summary, evidence.",
+    "Rules:",
+    "domain must be short lowercase (finance|support|operations|product|security|hr).",
+    "summary must be <= 2 sentences and specific.",
+    "evidence must cite facts from facts_sheet lines when provided.",
+    `Create 4 to ${maxEvents} events.`,
+    "Output schema:",
+    '{"events":[{"event_id":"...","source_key":"...","domain":"...","title":"...","summary":"...","evidence":["..."]}]}',
+  ].join("\n");
+
+  const user = JSON.stringify(
+    {
+      source_key: sourceKey,
+      expected_domain: domain,
+      evidence_digest: evidenceDigest,
+    },
+    null,
+    2
+  );
+
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errBody = await response.text();
+    throw new Error(`Groq request failed (${response.status}): ${errBody}`);
+  }
+
+  const json = await response.json();
+  const content = json?.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Groq response missing content");
+  const parsed = JSON.parse(cleanJsonPayload(content));
+  const events = Array.isArray(parsed?.events) ? parsed.events : [];
+
+  return events.map((event, idx) => ({
+    event_id: String(event.event_id ?? `${sourceKey}_ev_${String(idx + 1).padStart(3, "0")}`),
+    source_key: sourceKey,
+    domain: String(event.domain ?? domain).toLowerCase(),
+    title: String(event.title ?? "Untitled discovery"),
+    summary: String(event.summary ?? "").trim(),
+    evidence: Array.isArray(event.evidence) ? event.evidence.map((x) => String(x)) : [],
+  }));
+}
+
+async function buildTabularEvidenceDigest(entry) {
+  const fileType = detectType(entry.path, entry.type);
+  let rows = [];
+
+  if (fileType === "csv") {
+    const csvText = await fs.readFile(entry.path, "utf8");
+    rows = csvToRows(csvText);
+  } else if (fileType === "xlsx") {
+    rows = await xlsxToRows(entry.path);
+  } else {
+    throw new Error(`Unsupported tabular dataset type: ${fileType}`);
+  }
+
+  const facts = buildDatasetFactsSheet(rows, entry.key);
+  return {
+    type: "tabular_dataset_facts_sheet",
+    format: fileType,
     row_count: rows.length,
-    time_range: {
-      start: rows[0]?.timestamp ?? null,
-      end: rows[rows.length - 1]?.timestamp ?? null,
-    },
-    totals: {
-      total_tickets: totalTickets,
-      avg_first_response_min: Number(avgFirstResponse.toFixed(2)),
-      avg_sentiment_score: Number(avgSentiment.toFixed(3)),
-    },
-    by_region_tickets: byRegion,
-    by_topic_tickets: byTopic,
-    slow_topics_avg_first_response: slowByTopic,
-    worst_sentiment_topics: worstSentimentByTopic,
-    top_ticket_hours: topTicketHours,
+    schema: facts.schema,
+    facts_sheet_line_count: facts.lines.length,
+    facts_sheet: facts.lines.join("\n"),
+    note: "Deterministic preprocessing applied; LLM receives only facts_sheet, not raw dataset rows.",
   };
 }
 
@@ -186,91 +507,10 @@ function summarizeOpsJson(jsonText) {
   };
 }
 
-async function docxToText(filePath) {
-  const { stdout } = await execFileAsync("textutil", ["-convert", "txt", "-stdout", filePath], {
-    maxBuffer: 1024 * 1024 * 8,
-  });
-  return stdout;
-}
-
-function cleanJsonPayload(rawText) {
-  const trimmed = rawText.trim();
-  if (trimmed.startsWith("{") || trimmed.startsWith("[")) return trimmed;
-  const match = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (match?.[1]) return match[1].trim();
-  const start = trimmed.indexOf("{");
-  const end = trimmed.lastIndexOf("}");
-  if (start >= 0 && end > start) return trimmed.slice(start, end + 1);
-  return trimmed;
-}
-
-async function callGroqForEvents({ apiKey, model, sourceKey, domain, evidenceDigest, maxEvents }) {
-  const system = [
-    "You are Truman event extraction model.",
-    "Return strict JSON only. No markdown, no commentary.",
-    "Extract concrete discoveries from evidence.",
-    "One source can produce multiple events.",
-    "Each event must have these fields:",
-    "event_id, source_key, domain, title, summary, evidence.",
-    "Rules:",
-    "domain must be short lowercase (finance|support|operations|product|security|hr).",
-    "summary must be <= 2 sentences and specific.",
-    "evidence must include at least one concrete metric/value or direct policy trigger.",
-    `Create 4 to ${maxEvents} events.`,
-    "Output schema:",
-    '{"events":[{"event_id":"...","source_key":"...","domain":"...","title":"...","summary":"...","evidence":["..."]}]}',
-  ].join("\n");
-
-  const user = JSON.stringify(
-    {
-      source_key: sourceKey,
-      expected_domain: domain,
-      evidence_digest: evidenceDigest,
-    },
-    null,
-    2
-  );
-
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const errBody = await response.text();
-    throw new Error(`Groq request failed (${response.status}): ${errBody}`);
-  }
-
-  const json = await response.json();
-  const content = json?.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Groq response missing content");
-  const parsed = JSON.parse(cleanJsonPayload(content));
-  const events = Array.isArray(parsed?.events) ? parsed.events : [];
-
-  return events.map((event, idx) => ({
-    event_id: String(event.event_id ?? `${sourceKey}_ev_${String(idx + 1).padStart(3, "0")}`),
-    source_key: sourceKey,
-    domain: String(event.domain ?? domain).toLowerCase(),
-    title: String(event.title ?? "Untitled discovery"),
-    summary: String(event.summary ?? "").trim(),
-    evidence: Array.isArray(event.evidence) ? event.evidence.map((x) => String(x)) : [],
-  }));
-}
-
 async function buildEvidenceDigest(entry) {
-  if (entry.type === "docx") {
+  const fileType = detectType(entry.path, entry.type);
+
+  if (fileType === "docx") {
     const docText = await docxToText(entry.path);
     return {
       type: "docx_report",
@@ -279,16 +519,11 @@ async function buildEvidenceDigest(entry) {
     };
   }
 
-  if (entry.type === "csv") {
-    const csvText = await fs.readFile(entry.path, "utf8");
-    return {
-      type: "tabular_support_dataset",
-      analytics: summarizeSupportCsv(csvText),
-      note: "Aggregated metrics from customer success/support time-series CSV.",
-    };
+  if (fileType === "csv" || fileType === "xlsx") {
+    return buildTabularEvidenceDigest({ ...entry, type: fileType });
   }
 
-  if (entry.type === "json") {
+  if (fileType === "json") {
     const jsonText = await fs.readFile(entry.path, "utf8");
     return {
       type: "ops_it_alert_stream",
@@ -297,7 +532,7 @@ async function buildEvidenceDigest(entry) {
     };
   }
 
-  throw new Error(`Unsupported input type: ${entry.type}`);
+  throw new Error(`Unsupported input type: ${fileType}`);
 }
 
 export async function runEventExtraction({
@@ -329,6 +564,7 @@ export async function runEventExtraction({
       domain: input.domain,
       file_name: path.basename(input.path),
       generated_event_count: events.length,
+      evidence_type: digest.type,
     });
   }
 
