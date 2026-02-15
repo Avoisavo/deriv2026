@@ -66,6 +66,7 @@ function PredictionTree({
 }) {
   const [nodeDetailsMap, setNodeDetailsMap] = useState<NodeDetailsMap>({});
   const [realtimeDecision, setRealtimeDecision] = useState<RealtimeDecisionPayload | null>(null);
+  const [showSnackbar, setShowSnackbar] = useState(false);
 
   useEffect(() => {
     if (!supabase) {
@@ -79,6 +80,8 @@ function PredictionTree({
       const solution = payload.solution ?? "";
       const outcome = payload.outcome ?? "";
       setRealtimeDecision({ prompt, consequences, solution, outcome });
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 4000);
       fetch("/api/notify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -113,7 +116,11 @@ function PredictionTree({
         }
       });
 
-    return () => supabase.removeChannel(channel);
+    return () => {
+      if (supabase) {
+        supabase.removeChannel(channel);
+      }
+    };
   }, []);
 
   const handleRealtimeDecisionConsumed = useCallback(() => setRealtimeDecision(null), []);
@@ -194,6 +201,24 @@ function PredictionTree({
         />
       </main>
       <RightSidebar pathDecisions={pathDecisions} departments={departments} nodeDetailsMap={nodeDetailsMap} />
+
+      {/* Green glowing snackbar notification */}
+      {showSnackbar && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="relative px-6 py-3 bg-emerald-500/95 text-white font-medium rounded-lg shadow-2xl backdrop-blur-sm border border-emerald-400/50">
+            {/* Glow effect */}
+            <div className="absolute inset-0 rounded-lg bg-emerald-400 blur-lg opacity-50 -z-10 animate-pulse" />
+            <div className="absolute inset-0 rounded-lg bg-emerald-500 blur-md opacity-75 -z-10" />
+            {/* Content */}
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>Realtime update received</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
