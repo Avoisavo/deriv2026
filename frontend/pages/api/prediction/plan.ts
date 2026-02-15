@@ -291,6 +291,57 @@ function validatePath(
   return true;
 }
 
+/** Extract department id from node id (e.g. dec-file-1-3 -> 1). */
+function departmentOf(nodeId: string): number {
+  const m = nodeId.match(/^dec-file-(\d+)-/);
+  return m ? parseInt(m[1], 10) : -1;
+}
+
+/** Build a valid path following only existing links, optionally preferring cross-department steps to mock cross-domain. */
+function buildFallbackPath(
+  nodes: PlanRequestBody["nodes"],
+  links: PlanRequestBody["links"],
+  preferredStartId: string,
+  targetLength: number
+): string[] {
+  const nodeIds = new Set(nodes.map((n) => n.id));
+  const targets = new Set(links.map((l) => l.target));
+  const linkSet = new Set(links.map((l) => `${l.source}\t${l.target}`));
+  const linksBySource = new Map<string, string[]>();
+  links.forEach((l) => {
+    if (!linksBySource.has(l.source)) linksBySource.set(l.source, []);
+    linksBySource.get(l.source)!.push(l.target);
+  });
+  const globalRoots = nodes.filter((n) => !targets.has(n.id)).map((n) => n.id);
+  const blockEntryIds = nodes.filter((n) => /^dec-file-\d+-0$/.test(n.id)).map((n) => n.id);
+  const roots = [...new Set([...globalRoots, ...blockEntryIds])];
+
+  const startId = nodeIds.has(preferredStartId) && roots.includes(preferredStartId)
+    ? preferredStartId
+    : roots[0];
+  if (!startId) return [];
+
+  const path: string[] = [startId];
+  const visited = new Set<string>([startId]);
+  const maxSteps = Math.min(Math.max(2, targetLength), 8);
+
+  while (path.length < maxSteps) {
+    const current = path[path.length - 1];
+    const nextCandidates = linksBySource.get(current)?.filter((id) => !visited.has(id)) ?? [];
+    if (nextCandidates.length === 0) break;
+
+    const currentDept = departmentOf(current);
+    const crossDept = nextCandidates.filter((id) => departmentOf(id) !== currentDept);
+    const sameDept = nextCandidates.filter((id) => departmentOf(id) === currentDept);
+    const ordered = crossDept.length > 0 ? [...crossDept, ...sameDept] : nextCandidates;
+    const next = ordered[0];
+    path.push(next);
+    visited.add(next);
+  }
+
+  return path;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -461,18 +512,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
     if (!validatePath(parsed.pathNodeIds, safeNodes, safeLinks)) {
-      console.error(
-        "[plan] 502: path invalid. pathNodeIds:",
-        parsed.pathNodeIds,
-        "nodeIds sample:",
-        safeNodes.slice(0, 3).map((n) => n.id),
-        "links sample:",
-        safeLinks.slice(0, 3)
+      console.warn(
+        "[plan] path invalid, using fallback valid path. LLM path:",
+        parsed.pathNodeIds
       );
-      return res.status(502).json({
-        error: "Invalid response from Gemini",
-        details: "pathNodeIds is not a valid path in the graph (must start at root, follow links).",
-      });
+      const fallbackPath = buildFallbackPath(
+        safeNodes,
+        safeLinks,
+        parsed.pathNodeIds[0],
+        parsed.pathNodeIds.length
+      );
+      if (fallbackPath.length === 0) {
+        return res.status(502).json({
+          error: "Invalid response from Gemini",
+          details: "pathNodeIds is not a valid path and no fallback path could be built.",
+        });
+      }
+      parsed.pathNodeIds = fallbackPath;
     }
     const expectedEdgeCount = parsed.pathNodeIds.length - 1;
     if (Array.isArray(parsed.pathEdges) && parsed.pathEdges.length === expectedEdgeCount) {

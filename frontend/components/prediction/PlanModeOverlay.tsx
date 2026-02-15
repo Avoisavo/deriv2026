@@ -77,15 +77,18 @@ const LINK_FLOW_STYLE = (
 
 type TypingSection = "consequences" | "solution" | "outcome" | "done";
 
-/** Placeholder descriptions for why nodes are related (used when no API data). */
+/** Fallback descriptions for why path steps are related (used when API does not return pathEdges). Based on prediction-nodes domains: Support, Finance, Ops, Compliance, Marketing. */
 const EDGE_DESCRIPTIONS = [
-  "Causal dependency: outcome of first drives the second.",
-  "Process flow: sequential steps in the same workflow.",
-  "Cross-domain impact: change in one area affects the other.",
-  "Data or decision feeds into the next node.",
-  "Regulatory or policy link between steps.",
-  "Resource or capacity dependency.",
-  "Timeline or milestone dependency.",
+  "Support volume or response-time change drives the next outcome (e.g. ticket spike → backlog or refund uptick).",
+  "Finance control or threshold change affects downstream capacity or spend (e.g. vendor threshold → contractor reduction).",
+  "Ops alert or incident (latency, error rate, rollback) triggers the next decision or escalation.",
+  "Compliance hold, KYC queue, or monitoring change ties to support verification delays or dispute intake.",
+  "Cross-domain: support backlog or complaints feed into Finance watchlist or emergency-spend workflow.",
+  "Cost controls or hiring freeze increases reliance on Ops rollback readiness and incident playbooks.",
+  "Payment holds or verification delays surface in support tickets and escalate to dispute or refund watchlist.",
+  "Incident declaration or rollback links to Compliance audit trail and Finance emergency approval flow.",
+  "Campaign or conversion dip aligns with ops latency and support confirm-stuck complaints.",
+  "Error-rate or latency breach triggers cost-control pause and ties to Compliance communication note.",
 ];
 
 /** Stable random confidence in [0.6, 1] from a seed (index). */
