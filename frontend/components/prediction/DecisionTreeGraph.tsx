@@ -51,7 +51,9 @@ function buildGraphDataWithCoreAndClusters(
   nodes: GraphNode[],
   links: GraphLink[],
   departments: Department[],
-  showCrossDomainLinks = true
+  showCrossDomainLinks = true,
+  /** When set, cross-domain links that are consecutive on this path are always included so the flowing animation can draw them. */
+  pathNodeIds?: string[]
 ): { nodes: GraphNodeWithPos[]; links: { source: GraphNodeWithPos; target: GraphNodeWithPos }[] } {
   const deptOrder = departments.filter((d) => d.visible).map((d) => d.id);
   const nDepts = Math.max(1, deptOrder.length);
@@ -169,9 +171,25 @@ function buildGraphDataWithCoreAndClusters(
     .map(mapLink)
     .filter((l): l is { source: GraphNodeWithPos; target: GraphNodeWithPos } => l !== null);
 
+  // When cross-domain links are hidden, still include path-only cross-domain links so the flowing animation can draw them.
+  const pathOnlyCrossLinks =
+    !showCrossDomainLinks && pathNodeIds && pathNodeIds.length >= 2
+      ? pathNodeIds.slice(0, -1)
+          .map((srcId, i) => {
+            const tgtId = pathNodeIds[i + 1];
+            const link = crossDeptLinks.find((l) => {
+              const s = typeof l.source === "string" ? l.source : (l.source as { id: string }).id;
+              const t = typeof l.target === "string" ? l.target : (l.target as { id: string }).id;
+              return s === srcId && t === tgtId;
+            });
+            return link ? mapLink(link) : null;
+          })
+          .filter((l): l is { source: GraphNodeWithPos; target: GraphNodeWithPos } => l !== null)
+      : [];
+
   const allLinks = showCrossDomainLinks
     ? [...coreLinks, ...sameDeptLinksMapped, ...crossDeptLinksMapped]
-    : [...coreLinks, ...sameDeptLinksMapped];
+    : [...coreLinks, ...sameDeptLinksMapped, ...pathOnlyCrossLinks];
 
   return {
     nodes: [coreNode, ...decisionNodesWithPos],
@@ -308,7 +326,11 @@ export function DecisionTreeGraph({
   const [promptPathNodeIds, setPromptPathNodeIds] = useState<string[] | null>(null);
   const [showPredictionNode, setShowPredictionNode] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
+  const [showLinkingPhase, setShowLinkingPhase] = useState(false);
+  const [showRealtimeOverlay, setShowRealtimeOverlay] = useState(false);
+  const [realtimeOverlayExpanded, setRealtimeOverlayExpanded] = useState(false);
   const [planResult, setPlanResult] = useState<PlanResponse | null>(null);
+  const realtimeAnimationsCompleteRef = useRef(false);
   const [planLoading, setPlanLoading] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
   /** Flow animation: 0 = core only, 1 = core + first path node, etc. */
@@ -414,7 +436,7 @@ export function DecisionTreeGraph({
     setShowPredictionNode(false);
   }, []);
 
-  const isRealtimeOverlay = realtimeDecision != null;
+  const isRealtimeOverlay = realtimeDecision != null && showRealtimeOverlay && realtimeAnimationsCompleteRef.current;
   const overlayVisible = showOverlay || isRealtimeOverlay;
   const overlayPathLabels = isRealtimeOverlay
     ? (realtimeDecision?.pathLabels ?? ["Realtime"])
@@ -424,6 +446,22 @@ export function DecisionTreeGraph({
   const overlayConsequences = isRealtimeOverlay ? realtimeDecision?.consequences ?? "" : planResult?.consequences;
   const overlaySolution = isRealtimeOverlay ? realtimeDecision?.solution ?? "" : planResult?.solution;
   const overlayOutcome = isRealtimeOverlay ? realtimeDecision?.outcome ?? "" : planResult?.predictedOutput;
+  const overlayShowLinking = isRealtimeOverlay ? showLinkingPhase : false;
+  const overlayIsExpanded = isRealtimeOverlay ? realtimeOverlayExpanded : true;
+
+  // Debug logging for overlay visibility
+  if (realtimeDecision != null) {
+    console.log('[Overlay] State:', {
+      realtimeDecision: !!realtimeDecision,
+      showRealtimeOverlay,
+      realtimeAnimationsCompleteRef: realtimeAnimationsCompleteRef.current,
+      isRealtimeOverlay,
+      showOverlay,
+      overlayVisible,
+      showLinkingPhase,
+      realtimeOverlayExpanded,
+    });
+  }
 
   const handleOverlayYesForRealtime = useCallback(() => {
     onRealtimeDecisionConsumed?.();
@@ -445,11 +483,170 @@ export function DecisionTreeGraph({
   const PREDICTION_LINK_MS = 1200;
   const HOLD_BEFORE_PREDICTION_MS = 1000;
   const HOLD_AFTER_FLOW_MS = 3000;
-  const PREDICTION_NODE_EXTEND = TREE_LEVEL_HEIGHT * 1.8;
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Realtime decision flow: show linking animation on graph first, then expand overlay
+  useEffect(() => {
+    if (!realtimeDecision) {
+      console.log('[Realtime] No realtimeDecision, cleaning up');
+      setShowLinkingPhase(false);
+      setShowRealtimeOverlay(false);
+      setRealtimeOverlayExpanded(false);
+      realtimeAnimationsCompleteRef.current = false;
+      setPromptPathNodeIds(null);
+      return;
+    }
+
+    console.log('[Realtime] realtimeDecision received:', realtimeDecision);
+
+    // Get or generate path labels
+    let pathLabels = realtimeDecision.pathLabels;
+
+    // If no pathLabels provided, generate a demo path from the graph
+    if (!pathLabels || pathLabels.length === 0) {
+      console.log('[Realtime] No pathLabels provided, generating demo path');
+      const visibleDeptIds = departments.filter((d) => d.visible).map((d) => d.id);
+      if (visibleDeptIds.length > 0) {
+        const deptId = visibleDeptIds[0];
+        const nodeById = new Map(nodes.map((n) => [n.id, n]));
+        const sameDeptLinks = links.filter((l) => {
+          const src = nodeById.get(typeof l.source === "string" ? l.source : (l.source as { id: string }).id);
+          const tgt = nodeById.get(typeof l.target === "string" ? l.target : (l.target as { id: string }).id);
+          return src && tgt && src.payload.departmentId === deptId && tgt.payload.departmentId === deptId;
+        });
+
+        const childrenByNode = new Map<string, string[]>();
+        sameDeptLinks.forEach((l) => {
+          const src = typeof l.source === "string" ? l.source : (l.source as { id: string }).id;
+          const tgt = typeof l.target === "string" ? l.target : (l.target as { id: string }).id;
+          if (!childrenByNode.has(src)) childrenByNode.set(src, []);
+          childrenByNode.get(src)!.push(tgt);
+        });
+
+        const deptNodes = nodes.filter((n) => n.payload.departmentId === deptId);
+        const root = deptNodes.find((n) => !sameDeptLinks.some((l) => (typeof l.target === "string" ? l.target : (l.target as { id: string }).id) === n.id)) ?? deptNodes[0];
+
+        if (root) {
+          pathLabels = [root.payload.decision?.title || root.id];
+          const firstChild = childrenByNode.get(root.id)?.[0];
+          if (firstChild) {
+            pathLabels.push(nodes.find(n => n.id === firstChild)?.payload.decision?.title || firstChild);
+          }
+          console.log('[Realtime] Generated demo pathLabels:', pathLabels);
+        }
+      }
+    }
+
+    if (!pathLabels || pathLabels.length === 0) {
+      // Still no path, show overlay immediately
+      console.log('[Realtime] No pathLabels available, showing overlay immediately');
+      setShowLinkingPhase(false);
+      setShowRealtimeOverlay(true);
+      setRealtimeOverlayExpanded(true);
+      realtimeAnimationsCompleteRef.current = true;
+      return;
+    }
+
+    // Map path labels to node IDs
+    const nodeIds = pathLabels
+      .map(label => nodes.find(n => n.payload.decision?.title === label)?.id)
+      .filter((id): id is string => id != null);
+
+    console.log('[Realtime] Mapped nodeIds:', nodeIds);
+    if (nodeIds.length === 0) {
+      // No valid nodes, show overlay immediately
+      console.log('[Realtime] No valid nodeIds, showing overlay immediately');
+      setShowLinkingPhase(false);
+      setShowRealtimeOverlay(true);
+      setRealtimeOverlayExpanded(true);
+      realtimeAnimationsCompleteRef.current = true;
+      return;
+    }
+
+    // IMPORTANT: Ensure overlay doesn't show by setting ref first
+    console.log('[Realtime] Starting graph animations, blocking overlay');
+    realtimeAnimationsCompleteRef.current = false;
+    setShowLinkingPhase(true);
+    setShowRealtimeOverlay(false);
+    setRealtimeOverlayExpanded(false);
+    setPromptPathNodeIds(nodeIds);
+    setShowPredictionNode(false);
+    pathFlowProgressRef.current = 0;
+    setPathFlowIndex(0);
+
+    // Animate the path on the graph
+    const N = nodeIds.length;
+    const phase1Duration = N * PER_NODE_MS;
+    const start = performance.now();
+    let rafId: number;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const tickPhase1 = () => {
+      const elapsed = performance.now() - start;
+      const t = Math.min(elapsed / phase1Duration, 1);
+      const eased = 1 - Math.pow(1 - t, 1.2);
+      const progress = eased * N;
+      pathFlowProgressRef.current = progress;
+      setPathFlowIndex(Math.min(Math.ceil(progress), N));
+      if (graphRef.current && lastGraphDataRef.current) {
+        const { nodes: nds, links: lnks } = lastGraphDataRef.current;
+        graphRef.current.graphData({ nodes: [...nds], links: [...lnks] });
+      }
+      if (t >= 1) {
+        console.log('[Realtime] Phase 1 complete - path animation done');
+        // Path animation complete, show prediction node and overlay after a brief delay
+        timeoutId = setTimeout(() => {
+          console.log('[Realtime] Showing prediction node');
+          setShowPredictionNode(true);
+          requestAnimationFrame(() => {
+            const phase3Start = performance.now();
+            const phase3Duration = PREDICTION_LINK_MS;
+            const tickPhase3 = () => {
+              const phase3Elapsed = performance.now() - phase3Start;
+              const t3 = Math.min(phase3Elapsed / phase3Duration, 1);
+              const progress3 = N + t3;
+              pathFlowProgressRef.current = progress3;
+              setPathFlowIndex(Math.min(Math.ceil(progress3), N + 1));
+              if (graphRef.current && lastGraphDataRef.current) {
+                const { nodes: nds, links: lnks } = lastGraphDataRef.current;
+                graphRef.current.graphData({ nodes: [...nds], links: [...lnks] });
+              }
+              if (t3 < 1) rafId = requestAnimationFrame(tickPhase3);
+              else {
+                console.log('[Realtime] Phase 3 complete - all graph animations done');
+                // All graph animations complete, NOW show overlay
+                timeoutId = setTimeout(() => {
+                  console.log('[Realtime] HOLD_AFTER_FLOW_MS elapsed, setting realtimeAnimationsCompleteRef.current = true');
+                  realtimeAnimationsCompleteRef.current = true;
+                  setShowRealtimeOverlay(true);
+                  console.log('[Realtime] showRealtimeOverlay set to true, overlay should now be visible');
+                  // Keep linking phase true for a moment so overlay shows linking section
+                  // Then expand after a short delay
+                  timeoutId = setTimeout(() => {
+                    console.log('[Realtime] 800ms elapsed, expanding overlay');
+                    setShowLinkingPhase(false);
+                    setRealtimeOverlayExpanded(true);
+                  }, 800);
+                }, HOLD_AFTER_FLOW_MS);
+              }
+            };
+            rafId = requestAnimationFrame(tickPhase3);
+          });
+        }, HOLD_BEFORE_PREDICTION_MS);
+        return;
+      }
+      rafId = requestAnimationFrame(tickPhase1);
+    };
+    rafId = requestAnimationFrame(tickPhase1);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      if (timeoutId != null) clearTimeout(timeoutId);
+    };
+  }, [realtimeDecision?.prompt, realtimeDecision?.pathLabels?.join(","), nodes, links, departments]);
 
   // Reset panel state when selection is cleared.
   useEffect(() => {
@@ -617,7 +814,7 @@ export function DecisionTreeGraph({
           : (FG as (el: HTMLElement) => ForceGraphInstance)(el);
       graphRef.current = graph;
 
-      const graphData = buildGraphDataWithCoreAndClusters(nodes, links, departments, showCrossDomainLinks);
+      const graphData = buildGraphDataWithCoreAndClusters(nodes, links, departments, showCrossDomainLinks, effectivePathNodeIds);
       const graphNodes = graphData.nodes;
       const graphLinks = graphData.links;
       lastGraphDataRef.current = { nodes: graphNodes, links: graphLinks };
@@ -853,7 +1050,7 @@ export function DecisionTreeGraph({
   useEffect(() => {
     if (!graphRef.current || nodes.length === 0) return;
     const graph = graphRef.current;
-    let graphData = buildGraphDataWithCoreAndClusters(nodes, links, departments, showCrossDomainLinks);
+    let graphData = buildGraphDataWithCoreAndClusters(nodes, links, departments, showCrossDomainLinks, effectivePathNodeIds);
     if (showPredictionNode && promptPathNodeIds && promptPathNodeIds.length > 0) {
       const lastId = promptPathNodeIds[promptPathNodeIds.length - 1];
       const lastNode = graphData.nodes.find((n) => (n as GraphNodeWithPos).id === lastId) as GraphNodeWithPos | undefined;
@@ -977,11 +1174,14 @@ export function DecisionTreeGraph({
           prompt={overlayPrompt}
           onPromptChange={setPlanPrompt}
           onPromptSubmit={handlePromptSubmit}
-          isExpanded={true}
+          isExpanded={overlayIsExpanded}
+          showLinking={overlayShowLinking}
           consequencesText={overlayConsequences}
           solutionText={overlaySolution}
           outcomeText={overlayOutcome}
           predictionLabel={overlayOutcome}
+          probabilityPercent={planResult?.probabilityPercent}
+          pathEdges={planResult?.pathEdges}
           onYes={isRealtimeOverlay ? handleOverlayYesForRealtime : handleOverlayYes}
           onNo={isRealtimeOverlay ? handleOverlayNoOrCloseForRealtime : handleOverlayNo}
           onClose={isRealtimeOverlay ? handleOverlayNoOrCloseForRealtime : handleOverlayNo}

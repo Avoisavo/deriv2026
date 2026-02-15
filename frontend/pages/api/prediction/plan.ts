@@ -11,11 +11,23 @@ function geminiUrl(model: string) {
 const PREDICTION_DATA_DIR = join(process.cwd(), "data");
 const PREDICTION_NODES_FILE = join(PREDICTION_DATA_DIR, "prediction-nodes.txt");
 
+/** Per-edge metadata for the chosen path (one per consecutive pair in pathNodeIds). */
+export interface PathEdge {
+  /** Confidence that this step belongs in the path, in range 0.6–1. */
+  confidence: number;
+  /** Short explanation of why these two nodes are related. */
+  relationDescription: string;
+}
+
 export interface PlanResponse {
   consequences: string;
   solution: string;
   predictedOutput: string;
+  /** Probability of this outcome (0–100), from the model. */
+  probabilityPercent?: number;
   pathNodeIds: string[];
+  /** Per-edge confidence and relation description (length = pathNodeIds.length - 1). */
+  pathEdges?: PathEdge[];
 }
 
 interface PlanRequestBody {
@@ -108,16 +120,31 @@ function formatPastPredictionsContext(past: PastPrediction[], maxEntries = 5): s
   return `Additional context from past predictions (use for terminology and outcome style; path must still be chosen from "Existing nodes" below):\n${parts.join("\n")}\n`;
 }
 
+/** Compute valid path start node ids (roots / block entries). */
+function getValidPathStarts(nodes: PlanRequestBody["nodes"], links: PlanRequestBody["links"]): { id: string; title: string }[] {
+  const nodeIds = new Set(nodes.map((n) => n.id));
+  const targets = new Set(links.map((l) => l.target));
+  const globalRoots = nodes.filter((n) => !targets.has(n.id)).map((n) => n.id);
+  const blockEntryIds = nodes.filter((n) => /^dec-file-\d+-0$/.test(n.id)).map((n) => n.id);
+  const rootIds = [...new Set([...globalRoots, ...blockEntryIds])];
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  return rootIds.map((id) => ({ id, title: byId.get(id)?.title ?? id }));
+}
+
 function buildPrompt(
   question: string,
   nodes: PlanRequestBody["nodes"],
   links: PlanRequestBody["links"],
-  pastPredictionsContext: string
+  pastPredictionsContext: string,
+  validPathStarts: { id: string; title: string }[]
 ): string {
   const nodesJson = JSON.stringify(nodes, null, 2);
   const linksJson = JSON.stringify(links, null, 2);
   const contextBlock = pastPredictionsContext
     ? `\n${pastPredictionsContext}\n`
+    : "";
+  const pathStartsBlock = validPathStarts.length > 0
+    ? `\nValid path starts (the FIRST id in pathNodeIds MUST be exactly one of these):\n${validPathStarts.map((r) => `  - ${r.id} (${r.title})`).join("\n")}\n`
     : "";
 
   return `You are a decision-tree analyst. The user asks a question about a scenario. You have an existing graph of nodes and links.
@@ -127,21 +154,26 @@ Your tasks:
    - "consequences": a bullet list of what will happen as a result (considering the scenario).
    - "solution": a bullet list of recommended actions or solution steps.
    - "predictedOutput": one short phrase for the main predicted outcome (e.g. Revenue impact, Policy update).
+   - "probabilityPercent": a number from 0 to 100 indicating how likely this predicted outcome is given the path and scenario (e.g. 72 for 72%).
 
-2. Select a path through the existing graph that best answers the question:
-   - ALWAYS consider cross-department paths. The graph has links that connect nodes across departments (e.g. Support, Finance, Operations, Compliance). You may go directly from a node in one department to a node in another when an existing link allows it (e.g. incident node -> emergency spend node).
-   - The path MUST start from a valid entry: either the global root (no incoming link) or the first node of any block (e.g. dec-file-0-0, dec-file-1-0, dec-file-2-0, dec-file-3-0). You may start in the department that best fits the question.
-   - The path MUST follow existing links only: each step must be (source, target) in the links list. Use the "Existing links" list—it includes both within-department and cross-department links; use any link that fits the question, including direct cross-department links.
-   - The path MUST end at a node that best represents the predicted outcome (the "prediction node").
-   - Output the path as "pathNodeIds": an array of node ids in order from root to prediction node, e.g. ["id1", "id2", "id3"].
+2. Select a path through the existing graph that best answers the question.
+
+Path selection strategy (follow this to choose a good path):
+   a) Match the question's scenario: Identify which node(s) in "Existing nodes" represent the situation or premise in the question (e.g. "APAC ticket spike", "KYC queue grows", "cost controls pause"). Use node "title" and "description" to find the best match. The path should START from one of the valid path starts that is most relevant to this scenario.
+   b) Match the predicted outcome: The LAST node in your path must be the node that best represents your predictedOutput. If predictedOutput is "Emergency spend triggered", the path must end at a node about emergency spend or approvals. Scan "Existing nodes" for a node whose title/description fits the outcome.
+   c) Connect with existing links only: From your chosen start, follow only links that appear in "Existing links". Each step must be (source, target) in that list. You may use cross-department links when they fit the story.
+   d) Prefer a concise path: When multiple valid paths exist, prefer one with FEWER steps that still connects the scenario to the outcome. Do not add extra nodes that do not directly support answering the question. Typically 3–6 nodes is enough unless the question explicitly asks for a "full" or "complete" path across many departments.
+   e) Cross-department when the question asks: If the question mentions multiple areas (e.g. "how does that tie to Support and Finance") or asks to "connect X to Y", the path MUST include nodes from those areas. Node id prefix: dec-file-0-* = Support, dec-file-1-* = Finance, dec-file-2-* = Ops, dec-file-3-* = Compliance.
+${pathStartsBlock}
+   - Output the path as "pathNodeIds": an array of node ids in order from start to prediction node. Copy ids exactly from "Existing nodes".
+   - For each consecutive pair (pathNodeIds[i] -> pathNodeIds[i+1]), you MUST generate one entry in "pathEdges": { "confidence": number in range 0.6 to 1 (how strongly this step supports the answer), "relationDescription": a short sentence YOU generate explaining why this specific step belongs in the path for this question. Do not use generic phrases—describe in context of the user's question why moving from this node to the next is relevant (e.g. "Ticket spike leads to more refund requests, which triggers Finance's dispute workflow."). pathEdges is shown to the user, so generate a clear, specific description for each step.
 
 Rules:
 - pathNodeIds must only contain exact node ids from the "Existing nodes" list (copy the "id" values exactly; do not truncate or invent ids).
-- Consecutive ids in pathNodeIds must form an existing link (source -> target). Cross-department links are in the links list—use them when they fit; direct access to a node in another department is allowed when a link exists.
-- The first id must be a valid path start: a global root or the first node of a block (id ending with -0, e.g. dec-file-3-0 for Compliance).
-- Always prefer a path that crosses departments when the user's question spans multiple areas (support, finance, ops, compliance); do not restrict the path to one department unless the question is clearly about a single area.
-- CRITICAL: If the question explicitly asks for outcomes in other departments or "how does that tie to Support/Finance/Ops", the path MUST cross into those departments. Include at least one node from each department mentioned. Node id prefix indicates department: dec-file-0-* = Support, dec-file-1-* = Finance, dec-file-2-* = Ops, dec-file-3-* = Compliance. Use the Existing links to jump between departments; do not return a path that stays in one department when the question asks to tie to or include another.
-- When the question asks how compliance holds / KYC queue "tie to support verification-delay complaints" or "dispute intake", the path MUST include at least one Support node (id starting with dec-file-0-), e.g. Refund/Dispute Tickets or Customer Mentions of Public Escalation, reachable via the links list from your Compliance nodes.
+- Consecutive ids in pathNodeIds must form an existing link (source -> target) from the "Existing links" list.
+- The first id in pathNodeIds must be exactly one of the valid path starts listed above.
+- The last id in pathNodeIds must be the node that best represents your predictedOutput.
+- Always prefer a path that crosses departments when the user's question spans multiple areas; do not restrict to one department unless the question is clearly about a single area.
 - Keep consequences and solution to 2-4 short bullet points each so the response is complete.
 - Output ONLY one valid JSON object. No markdown, no code fence. Use \\n for newlines in strings.
 
@@ -150,8 +182,14 @@ Output format (exact structure):
   "consequences": "bullet list of consequences",
   "solution": "bullet list of solution steps",
   "predictedOutput": "short phrase",
-  "pathNodeIds": ["rootId", "nodeId2", "...", "predictionNodeId"]
+  "probabilityPercent": 0-100,
+  "pathNodeIds": ["rootId", "nodeId2", "...", "predictionNodeId"],
+  "pathEdges": [
+    { "confidence": 0.6-1, "relationDescription": "why step 1->2 is relevant" },
+    { "confidence": 0.6-1, "relationDescription": "why step 2->3 is relevant" }
+  ]
 }
+pathEdges must have exactly (pathNodeIds.length - 1) entries, one per consecutive pair in the path. Generate each relationDescription during path selection—explain why that link is part of the answer to the user's question.
 
 User question:
 ${question}
@@ -210,6 +248,22 @@ function repairTruncatedJson(raw: string): string {
   }
   s = s.replace(/,(\s*[}\]])/g, "$1");
   return s;
+}
+
+/** Normalize a JSON field that may be string or string[] into a single non-empty string; fallback if missing/empty. */
+function normalizeTextField(
+  value: unknown,
+  fallback: string
+): string {
+  if (typeof value === "string") {
+    const t = value.trim();
+    return t || fallback;
+  }
+  if (Array.isArray(value)) {
+    const parts = value.filter((x) => typeof x === "string").map((x) => String(x).trim()).filter(Boolean);
+    return parts.length ? parts.join("\n") : fallback;
+  }
+  return fallback;
 }
 
 /** Validate that pathNodeIds is a valid path in the graph (starts at root or block entry, follows links). */
@@ -274,7 +328,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const pastPredictions = readPastPredictions();
   const pastContext = formatPastPredictionsContext(pastPredictions);
-  const prompt = buildPrompt(question.trim(), safeNodes, safeLinks, pastContext);
+  const validPathStarts = getValidPathStarts(safeNodes, safeLinks);
+  const prompt = buildPrompt(question.trim(), safeNodes, safeLinks, pastContext, validPathStarts);
   const apiBody = {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: {
@@ -419,26 +474,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         details: "pathNodeIds is not a valid path in the graph (must start at root, follow links).",
       });
     }
-    if (typeof parsed.consequences !== "string" || !parsed.consequences.trim()) {
-      console.error("[plan] 502: consequences missing or empty");
-      return res.status(502).json({
-        error: "Invalid response from Gemini",
-        details: "consequences missing or empty",
+    const expectedEdgeCount = parsed.pathNodeIds.length - 1;
+    if (Array.isArray(parsed.pathEdges) && parsed.pathEdges.length === expectedEdgeCount) {
+      parsed.pathEdges = parsed.pathEdges.slice(0, expectedEdgeCount).map((e: { confidence?: unknown; relationDescription?: unknown }, i: number) => {
+        let conf = typeof e?.confidence === "number" && !Number.isNaN(e.confidence) ? e.confidence : 0.8;
+        if (typeof e?.confidence === "string" && e.confidence.trim() !== "") {
+          const n = Number(e.confidence.trim());
+          if (!Number.isNaN(n)) conf = n;
+        }
+        conf = Math.max(0.6, Math.min(1, Number(conf)));
+        const desc = typeof e?.relationDescription === "string" && e.relationDescription.trim()
+          ? e.relationDescription.trim()
+          : "Step in path.";
+        return { confidence: conf, relationDescription: desc };
       });
+    } else {
+      parsed.pathEdges = undefined;
     }
-    if (typeof parsed.solution !== "string" || !parsed.solution.trim()) {
-      console.error("[plan] 502: solution missing or empty");
-      return res.status(502).json({
-        error: "Invalid response from Gemini",
-        details: "solution missing or empty",
-      });
+    // Normalize text fields: Gemini may return strings or arrays; accept both and fallback if missing/empty
+    parsed.consequences = normalizeTextField(
+      parsed.consequences,
+      "Consequences not specified."
+    );
+    parsed.solution = normalizeTextField(parsed.solution, "Solution steps not specified.");
+    parsed.predictedOutput = normalizeTextField(
+      parsed.predictedOutput,
+      "Predicted outcome not specified."
+    );
+    const rawProb = parsed.probabilityPercent;
+    if (typeof rawProb === "number" && !Number.isNaN(rawProb)) {
+      parsed.probabilityPercent = Math.max(0, Math.min(100, Math.round(rawProb)));
+    } else if (typeof rawProb === "string" && rawProb.trim() !== "") {
+      const num = Number(rawProb.trim());
+      if (!Number.isNaN(num)) parsed.probabilityPercent = Math.max(0, Math.min(100, Math.round(num)));
+      else parsed.probabilityPercent = undefined;
+    } else {
+      parsed.probabilityPercent = undefined;
     }
-    if (typeof parsed.predictedOutput !== "string" || !parsed.predictedOutput.trim()) {
-      console.error("[plan] 502: predictedOutput missing or empty");
-      return res.status(502).json({
-        error: "Invalid response from Gemini",
-        details: "predictedOutput missing or empty",
-      });
+
+    if (parsed.consequences === "Consequences not specified.") {
+      console.warn("[plan] Gemini did not return consequences; using fallback");
+    }
+    if (parsed.solution === "Solution steps not specified.") {
+      console.warn("[plan] Gemini did not return solution; using fallback");
+    }
+    if (parsed.predictedOutput === "Predicted outcome not specified.") {
+      console.warn("[plan] Gemini did not return predictedOutput; using fallback");
     }
 
     return res.status(200).json(parsed);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 
 export interface PlanModeOverlayProps {
   /** Path node labels (information nodes on the lit path), in order. */
@@ -14,6 +14,8 @@ export interface PlanModeOverlayProps {
   onPromptSubmit: (prompt: string) => void;
   /** True after prediction node is created; overlay then expands and shows Consequences / Solution / Outcome. */
   isExpanded: boolean;
+  /** True to show the linking animation (cross-domain visual linking before expansion). */
+  showLinking?: boolean;
   /** Consequences text (what will happen). Can be from AI or demo. */
   consequencesText?: string;
   /** Solution text (AI-proposed solution). */
@@ -22,6 +24,10 @@ export interface PlanModeOverlayProps {
   outcomeText?: string;
   /** Label for the prediction pill (default "Prediction"). When provided (e.g. from API predictedOutput), last pill shows this. */
   predictionLabel?: string;
+  /** Probability of predicted outcome (0–100), from the plan API. */
+  probabilityPercent?: number;
+  /** Per-edge confidence (0.6–1) and relation description from the plan API; length = pathLabels.length. */
+  pathEdges?: { confidence: number; relationDescription: string }[];
   /** Called when user clicks Proceed in the final modal – virtual prediction becomes a real node. */
   onYes: () => void;
   /** Called when user clicks Cancel – virtual prediction is discarded. */
@@ -71,6 +77,23 @@ const LINK_FLOW_STYLE = (
 
 type TypingSection = "consequences" | "solution" | "outcome" | "done";
 
+/** Placeholder descriptions for why nodes are related (used when no API data). */
+const EDGE_DESCRIPTIONS = [
+  "Causal dependency: outcome of first drives the second.",
+  "Process flow: sequential steps in the same workflow.",
+  "Cross-domain impact: change in one area affects the other.",
+  "Data or decision feeds into the next node.",
+  "Regulatory or policy link between steps.",
+  "Resource or capacity dependency.",
+  "Timeline or milestone dependency.",
+];
+
+/** Stable random confidence in [0.6, 1] from a seed (index). */
+function edgeConfidence(seed: number): number {
+  const x = Math.sin(seed * 12.9898) * 43758.5453;
+  return 0.6 + (1 - 0.6) * (Math.abs(x - Math.floor(x)));
+}
+
 export function PlanModeOverlay({
   pathLabels,
   pillVisibleCount,
@@ -78,16 +101,38 @@ export function PlanModeOverlay({
   onPromptChange,
   onPromptSubmit,
   isExpanded,
+  showLinking = false,
   consequencesText = DEFAULT_CONSEQUENCES,
   solutionText = DEFAULT_SOLUTION,
   outcomeText = DEFAULT_OUTCOME,
   predictionLabel,
+  probabilityPercent,
+  pathEdges,
   onYes,
   onNo,
   onClose,
   autoProceedAfterMs,
 }: PlanModeOverlayProps) {
   const lastPillLabel = predictionLabel ?? "Prediction";
+
+  /** Per-edge confidence (0.6–1) and description; from API when present (API returns pathEdges for path segments only, not for last→prediction), else fallback. */
+  const edgeMeta = useMemo(() => {
+    const n = pathLabels.length + 1;
+    const edgeCount = n - 1;
+    const edgesWithCards = edgeCount - 1;
+    if (pathEdges && pathEdges.length >= edgesWithCards) {
+      const fromApi = pathEdges.slice(0, edgesWithCards).map((e) => ({
+        confidence: Math.max(0.6, Math.min(1, e.confidence)),
+        description: e.relationDescription?.trim() || "Step in path.",
+      }));
+      const lastDummy = { confidence: 0.8, description: "" };
+      return [...fromApi, lastDummy];
+    }
+    return Array.from({ length: edgeCount }, (_, i) => ({
+      confidence: edgeConfidence(i + pathLabels.join("|").length),
+      description: EDGE_DESCRIPTIONS[(i + pathLabels.length) % EDGE_DESCRIPTIONS.length],
+    }));
+  }, [pathLabels, pathEdges]);
   const [typingSection, setTypingSection] = useState<TypingSection>("consequences");
   const [displayedLength, setDisplayedLength] = useState(0);
   const [cursorVisible, setCursorVisible] = useState(true);
@@ -218,84 +263,114 @@ export function PlanModeOverlay({
         </div>
       </div>
 
-      {/* Phase 2: After prediction node – path as linkage + nodes then Consequences / Solution / Outcome */}
-      {isExpanded && (
-        <>
-          <div className="flex-none border-b border-slate-700/50 px-4 py-5 bg-slate-900/50">
-            {LINK_FLOW_STYLE}
-            <div className="mx-auto max-w-4xl">
-              {(() => {
-                const n = pathLabels.length + 1;
-                const nodes = [...pathLabels.map((l, i) => ({ label: l, isPrediction: false, i })), { label: lastPillLabel, isPrediction: true, i: pathLabels.length }];
-                return (
-                  <div className="grid w-full" style={{ gridTemplateColumns: `repeat(${n}, 1fr)` }}>
-                    {/* Row 1: one circle per column + link segments so nodes match column spacing */}
-                    {nodes.map((node, i) => {
+      {/* Phase 2: Path – nodes and edge cards (score + description) in one flow, between nodes */}
+      {(showLinking || isExpanded) && (
+        <div className="flex-none border-b border-slate-700/50 px-4 py-5 bg-slate-900/50 overflow-x-auto">
+          {LINK_FLOW_STYLE}
+          <div className="mx-auto w-full min-w-0" style={{ maxWidth: "min(90rem, 100%)" }}>
+            {(() => {
+              const n = pathLabels.length + 1;
+              const nodes = [...pathLabels.map((l, i) => ({ label: l, isPrediction: false, i })), { label: lastPillLabel, isPrediction: true, i: pathLabels.length }];
+              const totalCols = 2 * n - 1;
+              const gridCols = Array.from({ length: totalCols }, (_, j) => (j % 2 === 0 ? "minmax(4rem, 0.6fr)" : "minmax(10rem, 1.1fr)")).join(" ");
+              return (
+                <div
+                  className="grid w-full items-start gap-x-0"
+                  style={{ gridTemplateColumns: gridCols }}
+                >
+                  {Array.from({ length: totalCols }, (_, colIdx) => {
+                    if (colIdx % 2 === 0) {
+                      const i = colIdx / 2;
+                      const node = nodes[i];
                       const visible = i < pillVisibleCount || (node.isPrediction && pillVisibleCount >= pathLabels.length);
-                      const linkRightVisible = i < n - 1 && i + 1 <= pillVisibleCount;
-                      const linkLeftVisible = i > 0 && i <= pillVisibleCount;
+                      const linkLeftActive = i > 0 && i <= pillVisibleCount;
+                      const linkRightActive = i < n - 1 && i + 1 <= pillVisibleCount;
                       return (
-                        <div key={i} className="relative flex items-center justify-center min-h-10">
-                          {/* Left half of link (from previous node) */}
-                          {i > 0 && (
+                        <div key={`node-${i}`} className="flex min-w-0 flex-col items-center justify-start px-0.5">
+                          <div className="relative flex h-10 w-full items-center justify-center">
+                            {i > 0 && (
+                              <div
+                                className={`absolute right-1/2 left-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full transition-all duration-300 ${linkLeftActive ? "plan-link-flow-div" : ""}`}
+                                style={{ background: linkLeftActive ? undefined : "rgba(71, 85, 105, 0.4)" }}
+                              />
+                            )}
+                            {i < n - 1 && (
+                              <div
+                                className={`absolute left-1/2 right-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full transition-all duration-300 ${linkRightActive ? "plan-link-flow-div" : ""}`}
+                                style={{ background: linkRightActive ? undefined : "rgba(71, 85, 105, 0.4)" }}
+                              />
+                            )}
                             <div
-                              className={`absolute left-0 right-1/2 top-1/2 h-0.5 -translate-y-1/2 rounded-full transition-all duration-300 ${linkLeftVisible ? "plan-link-flow-div" : ""}`}
+                              className="relative z-10 h-3 w-3 shrink-0 rounded-full border-2 transition-all duration-300"
                               style={{
-                                background: linkLeftVisible ? undefined : "rgba(71, 85, 105, 0.4)",
+                                backgroundColor: node.isPrediction ? "#fff" : "rgb(251, 191, 36)",
+                                borderColor: node.isPrediction ? "rgba(255,255,255,0.9)" : "rgba(251, 191, 36, 0.9)",
+                                opacity: visible ? 1 : 0.25,
                               }}
                             />
-                          )}
-                          {/* Right half of link (to next node) */}
-                          {i < n - 1 && (
-                            <div
-                              className={`absolute left-1/2 right-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full transition-all duration-300 ${linkRightVisible ? "plan-link-flow-div" : ""}`}
-                              style={{
-                                background: linkRightVisible ? undefined : "rgba(71, 85, 105, 0.4)",
-                              }}
-                            />
-                          )}
-                          {/* Node circle - fixed size so stays round */}
-                          <div
-                            className="relative z-10 h-3 w-3 shrink-0 rounded-full border-2 transition-all duration-300"
+                          </div>
+                          <span
+                            className="mt-0.5 max-w-full text-center text-xs font-medium transition-all duration-300"
                             style={{
-                              backgroundColor: node.isPrediction ? "#fff" : "rgb(251, 191, 36)",
-                              borderColor: node.isPrediction ? "rgba(255,255,255,0.9)" : "rgba(251, 191, 36, 0.9)",
-                              opacity: visible ? 1 : 0.25,
+                              opacity: visible ? 1 : 0.35,
+                              color: node.isPrediction ? "rgb(226, 232, 240)" : "rgb(148, 163, 184)",
                             }}
-                          />
+                            title={node.label}
+                          >
+                            <span className="block truncate">{node.label}</span>
+                            {node.isPrediction && typeof probabilityPercent === "number" && (
+                              <span className="mt-0.5 block font-semibold text-amber-400/90">{probabilityPercent}%</span>
+                            )}
+                          </span>
                         </div>
                       );
-                    })}
-                    {/* Row 2: one label per column, directly under the node */}
-                    {pathLabels.map((label, i) => (
+                    }
+                    const edgeIdx = (colIdx - 1) / 2;
+                    const meta = edgeMeta[edgeIdx];
+                    if (!meta) return null;
+                    const edgeVisible = edgeIdx + 1 <= pillVisibleCount;
+                    const isLastEdge = edgeIdx === edgeMeta.length - 1;
+                    const confidenceDisplay = meta.confidence % 1 === 0
+                      ? meta.confidence.toFixed(1)
+                      : meta.confidence.toFixed(2);
+                    return (
                       <div
-                        key={i}
-                        className="flex flex-col items-center justify-start pt-0.5 transition-all duration-300"
-                        style={{
-                          opacity: i < pillVisibleCount ? 1 : 0.35,
-                          transform: i < pillVisibleCount ? "translateY(0)" : "translateY(4px)",
-                        }}
+                        key={`edge-${edgeIdx}`}
+                        className={`flex min-w-0 flex-col items-center justify-start px-1 ${isLastEdge ? "" : "pt-0.5"}`}
+                        style={{ opacity: edgeVisible ? 1 : 0.45 }}
                       >
-                        <span className="block text-center text-xs font-medium text-slate-400 truncate w-full px-0.5" title={label}>
-                          {label}
-                        </span>
+                        <div className={isLastEdge ? "flex h-10 w-full items-center" : "mb-1"}>
+                          <div
+                            className={`h-0.5 w-full rounded-full transition-all duration-300 ${edgeVisible ? "plan-link-flow-div" : ""}`}
+                            style={{ background: edgeVisible ? undefined : "rgba(71, 85, 105, 0.4)" }}
+                          />
+                        </div>
+                        {!isLastEdge && (
+                          <div
+                            className="w-full min-h-[3.5rem] rounded-lg border border-slate-600/50 bg-slate-800/60 px-2.5 py-2 shadow-sm flex flex-col justify-center"
+                            title={meta.description}
+                          >
+                            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-amber-400">
+                              Confidence {confidenceDisplay}
+                            </div>
+                            <p className="text-[11px] leading-snug text-slate-400 break-words line-clamp-2">
+                              {meta.description}
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    ))}
-                    <div
-                      className="flex flex-col items-center justify-start pt-0.5 transition-all duration-300"
-                      style={{
-                        opacity: pillVisibleCount >= pathLabels.length ? 1 : 0.35,
-                        transform: pillVisibleCount >= pathLabels.length ? "translateY(0)" : "translateY(4px)",
-                      }}
-                    >
-                      <span className="block text-center text-xs font-medium text-white truncate w-full px-0.5" title={lastPillLabel}>{lastPillLabel}</span>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
+        </div>
+      )}
 
+      {/* Phase 3: After expansion – Consequences / Solution / Outcome */}
+      {isExpanded && (
+        <>
           <div
             ref={scrollRef}
             className={`flex-1 min-h-0 overflow-auto p-6 ${showYesNoModal ? "pb-14" : ""}`}
@@ -304,6 +379,9 @@ export function PlanModeOverlay({
               {/* Path mapping: tie Consequences/Solution/Outcome to the path shown above */}
               <p className="text-xs text-slate-500">
                 Path: {pathLabels.join(" → ")} → {lastPillLabel}
+                {typeof probabilityPercent === "number" && (
+                  <span className="ml-1.5 font-medium text-amber-400/90">({probabilityPercent}% probability)</span>
+                )}
               </p>
               <section className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-5">
                 <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-amber-400">
@@ -333,15 +411,51 @@ export function PlanModeOverlay({
 
               {(typingSection === "outcome" || typingSection === "done") && (
                 <section className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-5">
-                  <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-amber-400">
-                    Outcome
-                  </h3>
+                  <div className="mb-3 flex items-center gap-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-400">
+                      Outcome
+                    </h3>
+                    {typeof probabilityPercent === "number" && (
+                      <span className="rounded bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-400">
+                        {probabilityPercent}% probability
+                      </span>
+                    )}
+                  </div>
                   <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed text-slate-300">
                     {typingSection === "outcome" ? currentDisplayed : outcomeText}
                     {typingSection === "outcome" && !sectionDone && cursorVisible && (
                       <span className="inline-block w-2 h-4 bg-amber-500 ml-0.5 align-middle animate-pulse" />
                     )}
                   </pre>
+                </section>
+              )}
+
+              {/* Execution section: integrations with purpose/idea */}
+              {(typingSection === "outcome" || typingSection === "done") && (
+                <section className="rounded-xl border border-slate-700/50 bg-slate-800/30 p-5">
+                  <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-amber-400">
+                    Execution
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <img src="/calandarlogo.png" alt="Calendar" className="h-8 w-8 shrink-0 rounded object-contain" />
+                      <p className="text-sm text-slate-300">
+                        Schedule end-of-life milestones and stakeholder check-ins for the transition plan.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <img src="/gmaillogo.png" alt="Gmail" className="h-8 w-8 shrink-0 rounded object-contain" />
+                      <p className="text-sm text-slate-300">
+                        Send updates to partners and internal teams about the wattle bottle wind-down timeline.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <img src="/docslogo.png" alt="Docs" className="h-8 w-8 shrink-0 rounded object-contain" />
+                      <p className="text-sm text-slate-300">
+                        Draft transition plan doc: communication strategy, alternatives, and new product messaging.
+                      </p>
+                    </div>
+                  </div>
                 </section>
               )}
             </div>

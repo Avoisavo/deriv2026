@@ -30,10 +30,22 @@ export interface NodeDetail {
 
 export type NodeDetailsMap = Record<string, NodeDetail>;
 
+/** Per-edge metadata for the chosen path (one per consecutive pair in pathNodeIds). */
+export interface PathEdge {
+  /** Confidence that this step belongs in the path, in range 0.6–1. */
+  confidence: number;
+  /** Short explanation of why these two nodes are related. */
+  relationDescription: string;
+}
+
 /** Response shape from /api/prediction/plan (question + existing graph → path + analysis). */
 export interface PlanResponse {
   consequences: string;
   solution: string;
   predictedOutput: string;
+  /** Probability of predicted outcome (0–100), from the model. */
+  probabilityPercent?: number;
   pathNodeIds: string[];
+  /** Per-edge confidence (0.6–1) and relation description (length = pathNodeIds.length - 1). */
+  pathEdges?: PathEdge[];
 }
